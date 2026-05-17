@@ -139,75 +139,128 @@ router.get("/standard", async (_req: Request, res: Response) => {
   }
 });
 
+// Column index constants matching the actual Excel format (merged-cell, every-other-column blank)
+const COL = {
+  projectId:       0,   // رقم المشروع
+  projectName:     2,   // اسم المشروع
+  projectType:     4,   // النوع
+  projectStatus:   6,   // الحالة
+  boqItemCode:    14,   // م البند
+  boqItemName:    18,   // الكلفة (2nd occurrence = item name)
+  elementCodeBoq: 20,   // البند (1st occurrence = BOQ element code)
+  elementNameBoq: 22,   // البند (2nd occurrence = BOQ element name)
+  branch:         24,   // الفرع
+  unit:           26,   // الوحدة
+  qty:            28,   // الكمية
+  unitPrice:      30,   // سعر الوحدة
+  totalValue:     32,   // القيمة
+  totalRequests:  34,   // اجمالي الطلبات (element-level)
+  totalCleared:   36,   // اجمالي ما تم اخلاؤه (element-level)
+  elementCode:    50,   // رمز الصنف (ERP/material code)
+  elementName:    52,   // اسم الصنف (ERP/material name)
+  requestedQty:   54,   // كمية الطلب
+  requestedAmount:56,   // مبلغ الطلبات
+  clearedQty:     58,   // كمية الاخلاء
+  clearedAmount:  60,   // مبلغ الاخلاء
+} as const;
+
+function detectColumns(headerRow: unknown[]): typeof COL {
+  // If the file matches expected header keywords at the known positions, use defaults.
+  // Otherwise, fall back to scanning for keywords to build a dynamic map.
+  const h = (i: number) => String(headerRow[i] ?? "").trim();
+
+  const looksLikeKnownFormat =
+    h(COL.projectId).includes("رقم المشروع") &&
+    h(COL.elementName).includes("اسم الصنف");
+
+  if (looksLikeKnownFormat) return COL;
+
+  // Fallback: scan all headers and map by keyword
+  const map = { ...COL };
+  const occurrences: Record<string, number[]> = {};
+  headerRow.forEach((cell, i) => {
+    const v = String(cell ?? "").trim();
+    if (!v) return;
+    if (!occurrences[v]) occurrences[v] = [];
+    occurrences[v].push(i);
+  });
+
+  const first = (k: string) => (occurrences[k] ?? [])[0] ?? -1;
+  const second = (k: string) => (occurrences[k] ?? [])[1] ?? -1;
+
+  if (first("رقم المشروع") >= 0)        map.projectId       = first("رقم المشروع");
+  if (first("اسم المشروع") >= 0)        map.projectName     = first("اسم المشروع");
+  if (first("النوع") >= 0)              map.projectType     = first("النوع");
+  if (first("الحالة") >= 0)             map.projectStatus   = first("الحالة");
+  if (first("م البند") >= 0)            map.boqItemCode     = first("م البند");
+  if (second("الكلفة") >= 0)            map.boqItemName     = second("الكلفة");
+  if (first("البند") >= 0)              map.elementCodeBoq  = first("البند");
+  if (second("البند") >= 0)             map.elementNameBoq  = second("البند");
+  if (first("الفرع") >= 0)              map.branch          = first("الفرع");
+  if (first("الوحدة") >= 0)             map.unit            = first("الوحدة");
+  if (first("الكمية") >= 0)             map.qty             = first("الكمية");
+  if (first("سعر الوحدة") >= 0)         map.unitPrice       = first("سعر الوحدة");
+  if (first("القيمة") >= 0)             map.totalValue      = first("القيمة");
+  if (second("اجمالي الطلبات") >= 0)    map.totalRequests   = second("اجمالي الطلبات");
+  if (second("اجمالي ما تم اخلاؤه") >= 0) map.totalCleared = second("اجمالي ما تم اخلاؤه");
+  if (first("رمز الصنف") >= 0)          map.elementCode     = first("رمز الصنف");
+  if (first("اسم الصنف") >= 0)          map.elementName     = first("اسم الصنف");
+  if (first("كمية الطلب") >= 0)         map.requestedQty    = first("كمية الطلب");
+  if (first("مبلغ الطلبات") >= 0)       map.requestedAmount = first("مبلغ الطلبات");
+  if (first("كمية الاخلاء") >= 0 || first("كمية الإخلاء") >= 0)
+    map.clearedQty = first("كمية الاخلاء") >= 0 ? first("كمية الاخلاء") : first("كمية الإخلاء");
+  if (first("مبلغ الاخلاء") >= 0 || first("مبلغ الإخلاء") >= 0)
+    map.clearedAmount = first("مبلغ الاخلاء") >= 0 ? first("مبلغ الاخلاء") : first("مبلغ الإخلاء");
+
+  return map;
+}
+
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
   if (!req.file) { res.status(400).json({ error: "لم يتم رفع أي ملف" }); return; }
   try {
-    const wb = XLSX.read(req.file.buffer, { type: "buffer", cellDates: true });
+    const wb = XLSX.read(req.file.buffer, { type: "buffer", cellDates: false });
     const sheetName = wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
-    const rawRows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
-    if (rawRows.length === 0) { res.status(400).json({ error: "الملف لا يحتوي على بيانات" }); return; }
+    // Read as raw arrays — avoids duplicate-header key collisions
+    const allRows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
-    const sampleRow = rawRows[0];
-    const keys = Object.keys(sampleRow);
+    if (allRows.length < 2) { res.status(400).json({ error: "الملف لا يحتوي على بيانات" }); return; }
 
-    const findCol = (...candidates: string[]): string | null => {
-      for (const c of candidates) {
-        const found = keys.find(k => k.includes(c) || c.includes(k));
-        if (found) return found;
-      }
-      return null;
-    };
+    const headerRow = allRows[0];
+    const dataRows  = allRows.slice(1);
+    const C = detectColumns(headerRow);
 
-    const colProjectId = findCol("رقم المشروع");
-    const colProjectName = findCol("اسم المشروع");
-    const colType = findCol("النوع");
-    const colStatus = findCol("الحالة");
-    const colBoqCode = findCol("م البند", "رقم البند");
-    const colBoqName = findCol("البند", "اسم البند");
-    const colBranch = findCol("الفرع");
-    const colUnit = findCol("الوحدة");
-    const colQty = findCol("الكمية");
-    const colUnitPrice = findCol("سعر الوحدة");
-    const colValue = findCol("القيمة");
-    const colElementCode = findCol("رمز الصنف");
-    const colElementName = findCol("اسم الصنف");
-    const colReqQty = findCol("كمية الطلب");
-    const colReqAmt = findCol("مبلغ الطلبات");
-    const colClrQty = findCol("كمية الاخلاء", "كمية الإخلاء");
-    const colClrAmt = findCol("مبلغ الاخلاء", "مبلغ الإخلاء");
-    const colTotalReq = findCol("اجمالي الطلبات", "إجمالي الطلبات");
-    const colTotalClr = findCol("اجمالي ما تم اخلاؤه", "إجمالي ما تم إخلاؤه");
+    const g = (row: unknown[], idx: number): string => String(row[idx] ?? "").trim();
 
     const [batch] = await db
       .insert(importBatchesTable)
-      .values({ filename: req.file.originalname, rowCount: rawRows.length, status: "processing" })
+      .values({ filename: req.file.originalname, rowCount: dataRows.length, status: "processing" })
       .returning();
 
-    const toInsert = rawRows
-      .filter(r => colElementName && r[colElementName])
-      .map(r => ({
-        batchId: batch.id,
-        projectId: colProjectId ? String(r[colProjectId] || "") || null : null,
-        projectName: colProjectName ? String(r[colProjectName] || "") || null : null,
-        projectType: colType ? String(r[colType] || "") || null : null,
-        projectStatus: colStatus ? String(r[colStatus] || "") || null : null,
-        boqItemCode: colBoqCode ? String(r[colBoqCode] || "") || null : null,
-        boqItemName: colBoqName ? String(r[colBoqName] || "") || null : null,
-        branch: colBranch ? String(r[colBranch] || "") || null : null,
-        unit: colUnit ? String(r[colUnit] || "") || null : null,
-        qty: colQty ? (parseNum(r[colQty]) !== null ? String(parseNum(r[colQty])) : null) : null,
-        unitPrice: colUnitPrice ? (parseNum(r[colUnitPrice]) !== null ? String(parseNum(r[colUnitPrice])) : null) : null,
-        totalValue: colValue ? (parseNum(r[colValue]) !== null ? String(parseNum(r[colValue])) : null) : null,
-        elementCode: colElementCode ? String(r[colElementCode] || "") || null : null,
-        elementName: colElementName ? String(r[colElementName] || "") || null : null,
-        requestedQty: colReqQty ? (parseNum(r[colReqQty]) !== null ? String(parseNum(r[colReqQty])) : null) : null,
-        requestedAmount: colReqAmt ? (parseNum(r[colReqAmt]) !== null ? String(parseNum(r[colReqAmt])) : null) : null,
-        clearedQty: colClrQty ? (parseNum(r[colClrQty]) !== null ? String(parseNum(r[colClrQty])) : null) : null,
-        clearedAmount: colClrAmt ? (parseNum(r[colClrAmt]) !== null ? String(parseNum(r[colClrAmt])) : null) : null,
-        totalRequests: colTotalReq ? (parseNum(r[colTotalReq]) !== null ? String(parseNum(r[colTotalReq])) : null) : null,
-        totalCleared: colTotalClr ? (parseNum(r[colTotalClr]) !== null ? String(parseNum(r[colTotalClr])) : null) : null,
+    const toInsert = dataRows
+      .filter(row => g(row, C.elementName) !== "")
+      .map(row => ({
+        batchId:         batch.id,
+        projectId:       g(row, C.projectId)    || null,
+        projectName:     g(row, C.projectName)   || null,
+        projectType:     g(row, C.projectType)   || null,
+        projectStatus:   g(row, C.projectStatus) || null,
+        boqItemCode:     g(row, C.boqItemCode)   || null,
+        boqItemName:     g(row, C.boqItemName)   || null,
+        branch:          g(row, C.branch)         || null,
+        unit:            g(row, C.unit)           || null,
+        qty:             parseNum(row[C.qty])           !== null ? String(parseNum(row[C.qty]))           : null,
+        unitPrice:       parseNum(row[C.unitPrice])     !== null ? String(parseNum(row[C.unitPrice]))     : null,
+        totalValue:      parseNum(row[C.totalValue])    !== null ? String(parseNum(row[C.totalValue]))    : null,
+        elementCode:     g(row, C.elementCode)   || null,
+        elementName:     g(row, C.elementName)   || null,
+        requestedQty:    parseNum(row[C.requestedQty])  !== null ? String(parseNum(row[C.requestedQty]))  : null,
+        requestedAmount: parseNum(row[C.requestedAmount])!== null? String(parseNum(row[C.requestedAmount])): null,
+        clearedQty:      parseNum(row[C.clearedQty])    !== null ? String(parseNum(row[C.clearedQty]))    : null,
+        clearedAmount:   parseNum(row[C.clearedAmount]) !== null ? String(parseNum(row[C.clearedAmount])) : null,
+        totalRequests:   parseNum(row[C.totalRequests]) !== null ? String(parseNum(row[C.totalRequests])) : null,
+        totalCleared:    parseNum(row[C.totalCleared])  !== null ? String(parseNum(row[C.totalCleared]))  : null,
       }));
 
     const CHUNK = 500;
@@ -219,7 +272,13 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
       .set({ status: "done", rowCount: toInsert.length })
       .where(eq(importBatchesTable.id, batch.id));
 
-    res.json({ success: true, batchId: batch.id, rowsImported: toInsert.length, columnsDetected: keys });
+    res.json({
+      success: true,
+      batchId: batch.id,
+      rowsImported: toInsert.length,
+      totalRows: dataRows.length,
+      columnsUsed: C,
+    });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
