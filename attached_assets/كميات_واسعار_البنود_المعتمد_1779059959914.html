@@ -1,4 +1,258 @@
-export const STANDARD_DATA = [
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام مراقبة كميات وأسعار التنفيذ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;direction:rtl}
+.header{background:linear-gradient(135deg,#1e3a5f,#0f2744);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #2563eb;box-shadow:0 4px 20px rgba(0,0,0,.4);flex-wrap:wrap;gap:10px}
+.header h1{font-size:1.3rem;color:#93c5fd;font-weight:700}
+.header-btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:.83rem;font-weight:600;transition:all .2s;font-family:inherit;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8;transform:translateY(-1px)}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857;transform:translateY(-1px)}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309;transform:translateY(-1px)}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-secondary{background:#374151;color:#d1d5db;border:1px solid #4b5563}.btn-secondary:hover{background:#4b5563}
+.btn-print{background:#7c3aed;color:#fff}.btn-print:hover{background:#6d28d9;transform:translateY(-1px)}
+.btn-sm{padding:5px 10px;font-size:.75rem}
+.main{max-width:1150px;margin:28px auto;padding:0 18px}
+.search-section{background:#1e293b;border-radius:14px;padding:24px;margin-bottom:20px;border:1px solid #334155;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.search-section label{display:block;font-size:.9rem;color:#94a3b8;margin-bottom:9px;font-weight:600}
+.search-wrapper{position:relative}
+.search-input{width:100%;padding:13px 18px;background:#0f172a;border:2px solid #334155;border-radius:10px;color:#e2e8f0;font-size:1rem;font-family:inherit;direction:rtl;transition:border-color .2s;outline:none}
+.search-input:focus{border-color:#2563eb}
+.search-input::placeholder{color:#475569}
+.suggestions{position:absolute;top:100%;right:0;left:0;background:#1e293b;border:1px solid #334155;border-radius:10px;margin-top:4px;max-height:320px;overflow-y:auto;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}
+.suggestions.active{display:block}
+.sug-item{padding:11px 16px;cursor:pointer;border-bottom:1px solid #0f172a;transition:background .15s;display:flex;align-items:center;gap:10px}
+.sug-item:last-child{border-bottom:none}
+.sug-item:hover,.sug-item.sel{background:#2563eb22}
+.sug-num{background:#2563eb;color:#fff;padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:700;min-width:50px;text-align:center;flex-shrink:0}
+.sug-name{color:#e2e8f0;font-size:.88rem;flex:1}
+.sug-sheet{color:#64748b;font-size:.72rem;flex-shrink:0}
+.hl{color:#60a5fa;font-weight:700}
+.no-results{padding:14px 18px;color:#64748b;text-align:center;font-size:.88rem}
+
+/* Item panel */
+.item-panel{background:#1e293b;border-radius:14px;border:1px solid #334155;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.3);display:none;margin-bottom:20px}
+.item-panel.visible{display:block}
+.item-header{background:linear-gradient(135deg,#1e3a5f,#1a3050);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid #2d4a6e}
+.item-title-block{flex:1}
+.item-badge{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.item-num-tag{background:#2563eb;color:#fff;padding:3px 12px;border-radius:6px;font-size:.8rem;font-weight:700}
+.badge-sheet{display:inline-block;background:#1e3a5f;color:#93c5fd;border:1px solid #2d4a6e;padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:600}
+.item-name{font-size:1.1rem;font-weight:700;color:#e2e8f0;line-height:1.4}
+.item-unit{font-size:.8rem;color:#64748b;margin-top:4px}
+.item-actions{display:flex;gap:7px;flex-wrap:wrap}
+
+/* Stats bar */
+.stats-bar{display:flex;gap:20px;padding:14px 22px;background:#0f172a;border-bottom:1px solid #1e293b;flex-wrap:wrap}
+.stat-item{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#64748b}
+.stat-val{color:#e2e8f0;font-weight:700}
+
+/* Elements table */
+.table-section{padding:20px}
+.section-title{font-size:.82rem;font-weight:700;color:#64748b;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #1e293b}
+.table-wrapper{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:660px}
+thead tr{background:#0f172a}
+thead th{padding:11px 13px;text-align:center;color:#94a3b8;font-weight:700;font-size:.78rem;border-bottom:2px solid #2563eb22;white-space:nowrap}
+tbody tr{border-bottom:1px solid #1e293b;transition:background .15s}
+tbody tr:hover{background:#ffffff08}
+tbody tr:nth-child(even){background:#ffffff04}
+td{padding:9px 13px;text-align:center;color:#cbd5e1;vertical-align:middle}
+td:nth-child(2){text-align:right}
+.td-name{font-weight:600;color:#e2e8f0}
+.td-unit{color:#94a3b8;font-size:.8rem}
+.td-total{color:#34d399;font-weight:700}
+.editable{background:transparent;border:1px solid transparent;border-radius:6px;padding:5px 7px;width:100%;text-align:center;color:inherit;font-family:inherit;font-size:inherit;cursor:pointer;transition:all .15s;min-width:75px}
+.editable:hover{border-color:#334155;background:#0f172a}
+.editable:focus{outline:none;border-color:#2563eb;background:#0f172a;color:#60a5fa}
+.editable.qty{color:#fbbf24}
+.editable.price{color:#a78bfa}
+.total-row{background:#0f2744 !important;border-top:2px solid #2563eb33 !important}
+.total-row td{padding:13px;font-weight:700;color:#93c5fd}
+.total-label{text-align:right !important;font-size:.88rem}
+.total-amount{color:#34d399 !important;font-size:1.05rem}
+
+/* Contractor prices section */
+.contractors-section{padding:0 20px 20px}
+.contractors-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.add-price-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.add-price-form input{background:#0f172a;border:1px solid #334155;border-radius:7px;padding:7px 12px;color:#e2e8f0;font-size:.83rem;font-family:inherit;outline:none;width:180px}
+.add-price-form input:focus{border-color:#2563eb}
+.add-price-form input::placeholder{color:#475569}
+.contractors-table-wrap{overflow-x:auto}
+.contractors-table{width:100%;border-collapse:collapse;font-size:.84rem;min-width:500px}
+.contractors-table thead th{background:#0f172a;padding:10px 14px;text-align:center;color:#94a3b8;font-weight:700;font-size:.78rem;border-bottom:1px solid #2563eb22}
+.contractors-table tbody tr{border-bottom:1px solid #1e293b;transition:background .15s}
+.contractors-table tbody tr:hover{background:#ffffff08}
+.contractors-table td{padding:9px 14px;text-align:center;color:#cbd5e1}
+.contractors-table td:nth-child(2){text-align:right;color:#e2e8f0;font-weight:600}
+.ct-price{color:#f59e0b;font-weight:700}
+.ct-diff-pos{color:#34d399;font-weight:700}
+.ct-diff-neg{color:#f87171;font-weight:700}
+.ct-rank-1{color:#fbbf24;font-weight:700}
+.best-badge{background:#059669;color:#fff;padding:2px 7px;border-radius:4px;font-size:.7rem;font-weight:700;margin-right:6px}
+.no-contractors{padding:20px;text-align:center;color:#475569;font-size:.88rem}
+
+/* Toast */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e293b;border:1px solid #334155;border-radius:10px;padding:11px 22px;color:#e2e8f0;font-size:.88rem;z-index:9999;transition:transform .3s ease;box-shadow:0 10px 30px rgba(0,0,0,.5);display:flex;align-items:center;gap:8px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:#059669}
+.toast.error{border-color:#dc2626}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:26px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+.modal h3{margin-bottom:14px;color:#93c5fd;font-size:1rem}
+.modal p{color:#94a3b8;margin-bottom:18px;font-size:.88rem;line-height:1.6}
+.modal-btns{display:flex;gap:9px;justify-content:flex-end}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 20px;color:#475569}
+.empty-state .icon{font-size:2.8rem;margin-bottom:14px}
+.empty-state p{font-size:.95rem}
+
+/* Print */
+@media print{
+  body{background:#fff !important;color:#000 !important}
+  .header,.search-section,.item-actions,.btn,.stats-bar,.contractors-section,.section-title{display:none !important}
+  .item-panel{display:block !important;box-shadow:none;border:1px solid #ccc}
+  .item-header{background:#1e3a5f !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .item-name,.item-num-tag{color:#fff !important}
+  .item-unit{color:#aaa !important}
+  thead tr{background:#f1f5f9 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  thead th,tbody td{color:#1e293b !important}
+  .td-name{color:#0f172a !important}
+  .total-row{background:#eff6ff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .total-row td{color:#1e40af !important}
+  .total-amount{color:#059669 !important}
+  .editable{border:none !important;background:transparent !important}
+  .editable.qty{color:#b45309 !important}
+  .editable.price{color:#7c3aed !important}
+  .td-total{color:#059669 !important}
+  table{min-width:auto}
+  .table-section{padding:10px}
+}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#0f172a}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#475569}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#x1F4CA; نظام مراقبة كميات وأسعار التنفيذ</h1>
+  <div class="header-btns">
+    <button class="btn btn-success" onclick="exportDB()">&#x2B07; تصدير قاعدة البيانات</button>
+    <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">&#x2B06; استيراد قاعدة البيانات</button>
+    <button class="btn btn-secondary" onclick="showResetModal()">&#x21BA; إعادة تعيين</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importDB(event)">
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Search -->
+  <div class="search-section">
+    <label>&#x1F50D; ابحث عن البند (بالاسم أو الرقم)</label>
+    <div class="search-wrapper">
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="اكتب جزءاً من اسم البند أو رقمه..."
+        autocomplete="off"
+        oninput="onSearch(this.value)"
+        onkeydown="handleKey(event)"
+        onfocus="if(this.value.trim()) onSearch(this.value)">
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+  </div>
+
+  <!-- Item Panel -->
+  <div class="item-panel" id="itemPanel">
+    <div class="item-header">
+      <div class="item-title-block">
+        <div class="item-badge">
+          <span class="item-num-tag" id="itemNumTag"></span>
+          <span class="badge-sheet" id="itemSheetTag"></span>
+        </div>
+        <div class="item-name" id="itemName"></div>
+        <div class="item-unit" id="itemUnit"></div>
+      </div>
+      <div class="item-actions">
+        <button class="btn btn-primary" onclick="saveItem()">&#x1F4BE; حفظ التعديلات</button>
+        <button class="btn btn-print" onclick="window.print()">&#x1F5A8; طباعة</button>
+        <button class="btn btn-secondary" onclick="resetItemToDefault()">&#x21BA; استعادة الأصلي</button>
+      </div>
+    </div>
+    <div class="stats-bar" id="statsBar"></div>
+
+    <!-- Elements table -->
+    <div class="table-section">
+      <div class="section-title">&#x1F4E6; عناصر البند وأسعارها</div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:38px">م</th>
+              <th style="text-align:right">اسم الصنف</th>
+              <th style="width:85px">الوحدة</th>
+              <th style="width:115px">الكمية للوحدة</th>
+              <th style="width:130px">سعر الوحدة</th>
+              <th style="width:135px">الإجمالي الكلي</th>
+            </tr>
+          </thead>
+          <tbody id="itemBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Contractor prices section -->
+    <div class="contractors-section">
+      <div class="section-title">&#x1F4B0; عروض أسعار المقاولين</div>
+      <div class="contractors-header">
+        <div class="add-price-form">
+          <input type="text" id="ctName" placeholder="اسم المقاول / العرض">
+          <input type="number" id="ctPrice" placeholder="السعر" step="any" min="0">
+          <button class="btn btn-primary btn-sm" onclick="addContractorPrice()">&#x2B; إضافة عرض</button>
+        </div>
+      </div>
+      <div class="contractors-table-wrap">
+        <div id="contractorsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="emptyState" class="empty-state">
+    <div class="icon">&#x1F4CB;</div>
+    <p>ابحث عن بند لعرض عناصره وأسعاره</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="resetModal">
+  <div class="modal">
+    <h3>&#x26A0; إعادة تعيين البيانات</h3>
+    <p>سيتم حذف جميع التعديلات المحفوظة وإعادة تحميل البيانات الأصلية. هذا الإجراء لا يمكن التراجع عنه.</p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+      <button class="btn btn-danger" onclick="resetAllData()">تأكيد الإعادة</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ALL ITEMS DATA (Original from Excel)
+// ============================================================
+const ORIGINAL_DATA = [
   // ===== الرصيف =====
   {"id":"رصيف_0","رقم البند":"1051","اسم البند":"ازاله واعاده ارصفه البلاط السيراميك","الورقة":"الرصيف","الوحدة":"م2","العناصر":[{"اسم الصنف":"اسمنت","الوحدة":"كيس","الكمية":0.16,"سعر الوحدة":3750},{"اسم الصنف":"رمل","الوحدة":"طن","الكمية":0.030303,"سعر الوحدة":10200},{"اسم الصنف":"ماء للعمل والرش","الوحدة":"لتر","الكمية":50,"سعر الوحدة":5},{"اسم الصنف":"بلاط","الوحدة":"م2","الكمية":1.05,"سعر الوحدة":4500},{"اسم الصنف":"دفان","الوحدة":"طن","الكمية":0.04,"سعر الوحدة":4200},{"اسم الصنف":"مقطوعيه اعمال بلاط","الوحدة":"م2","الكمية":1,"سعر الوحدة":2500}]},
   {"id":"رصيف_1","رقم البند":"","اسم البند":"ازاله واعاده بلاط الارصفه الاسمنتيه العاديه","الورقة":"الرصيف","الوحدة":"م2","العناصر":[{"اسم الصنف":"اسمنت","الوحدة":"كيس","الكمية":0.16,"سعر الوحدة":3750},{"اسم الصنف":"رمل","الوحدة":"طن","الكمية":0.030303,"سعر الوحدة":10200},{"اسم الصنف":"ماء للعمل والرش","الوحدة":"لتر","الكمية":50,"سعر الوحدة":5},{"اسم الصنف":"بلاط","الوحدة":"م2","الكمية":1,"سعر الوحدة":4500},{"اسم الصنف":"دفان","الوحدة":"طن","الكمية":0.04,"سعر الوحدة":4200},{"اسم الصنف":"مقطوعيه اعمال بلاط","الوحدة":"م2","الكمية":1,"سعر الوحدة":1500}]},
@@ -69,5 +323,350 @@ export const STANDARD_DATA = [
   {"id":"WFBB_29","رقم البند":"9679","اسم البند":"اعمال الدهان والرنج الزيتي مع المعجون للاسقف والحوائط 3 أوجه","الورقة":"WFBB","الوحدة":"م2","العناصر":[{"اسم الصنف":"دهان مائي","الوحدة":"لتر","الكمية":0.33,"سعر الوحدة":2375},{"اسم الصنف":"ورق صنفره","الوحدة":"عدد","الكمية":0.08,"سعر الوحدة":250},{"اسم الصنف":"معجون اكياس","الوحدة":"كيس","الكمية":0.02,"سعر الوحدة":250},{"اسم الصنف":"دهان مائي اساس","الوحدة":"لتر","الكمية":0.22,"سعر الوحدة":1100},{"اسم الصنف":"مصنعيه اعمال الدهان المائي","الوحدة":"م2","الكمية":1,"سعر الوحدة":500}]},
   {"id":"WFBB_30","رقم البند":"9678","اسم البند":"اعمال الدهان والرنج المائي مع المعجون للاسقف والحوائط","الورقة":"WFBB","الوحدة":"م2","العناصر":[{"اسم الصنف":"مقاولون من الباطن اعمال دهان","الوحدة":"م2","الكمية":1,"سعر الوحدة":1600}]},
   {"id":"WFBB_31","رقم البند":"9684","اسم البند":"اعمال الدهان رشه محبب للحوائط مع الصنفره بماطور","الورقة":"WFBB","الوحدة":"م2","العناصر":[{"اسم الصنف":"مقاولون من الباطن اعمال دهان رشه","الوحدة":"م2","الكمية":1,"سعر الوحدة":2900}]},
-  {"id":"WFBB_32","رقم البند":"9677","اسم البند":"اعمال البلاط السيراميك والقيشاني لجدران وارضيات الحمام والصاله","الورقة":"WFBB","الوحدة":"م2","العناصر":[{"اسم الصنف":"اسمنت","الوحدة":"كيس","الكمية":0.16,"سعر الوحدة":3400},{"اسم الصنف":"اسمنت ابيض","الوحدة":"كيس","الكمية":0.5,"سعر الوحدة":250},{"اسم الصنف":"بلاط سيرامي للارضيات والجدران","الوحدة":"م2","الكمية":1,"سعر الوحدة":5200},{"اسم الصنف":"رمل","الوحدة":"طن","الكمية":0.05,"سعر الوحدة":3500},{"اسم الصنف":"ماء للعمل والرش","الوحدة":"لتر","الكمية":20,"سعر الوحدة":5},{"اسم الصنف":"مصنعيه بلاط سيراميك","الوحدة":"م2","الكمية":1,"سعر الوحدة":2000}]},
+  {"id":"WFBB_32","رقم البند":"9677","اسم البند":"اعمال البلاط السيراميك والقيشاني لجدران وارضيات الحمام والصاله","الورقة":"WFBB","الوحدة":"م2","العناصر":[{"اسم الصنف":"اسمنت","الوحدة":"كيس","الكمية":0.16,"سعر الوحدة":3400},{"اسم الصنف":"اسمنت ابيض","الوحدة":"كيس","الكمية":0.5,"سعر الوحدة":250},{"اسم الصنف":"بلاط سيرامي للارضيات والجدران","الوحدة":"م2","الكمية":1,"سعر الوحدة":5200},{"اسم الصنف":"رمل","الوحدة":"طن","الكمية":0.05,"سعر الوحدة":3500},{"اسم الصنف":"ماء للعمل والرش","الوحدة":"لتر","الكمية":20,"سعر الوحدة":5},{"اسم الصنف":"مصنعيه بلاط سيراميك","الوحدة":"م2","الكمية":1,"سعر الوحدة":2000}]}
 ];
+
+// ============================================================
+// IndexedDB
+// ============================================================
+const DB_NAME = 'QuantitiesPricesDB_v2';
+const DB_VERSION = 2;
+const STORE_ITEMS = 'items';
+const STORE_CONTRACTORS = 'contractors';
+let db = null;
+let currentItemId = null;
+let filteredItems = [];
+let selIdx = -1;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE_ITEMS)) d.createObjectStore(STORE_ITEMS, {keyPath:'id'});
+      if (!d.objectStoreNames.contains(STORE_CONTRACTORS)) d.createObjectStore(STORE_CONTRACTORS, {keyPath:'itemId'});
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = rej;
+  });
+}
+const tx = (store, mode='readonly') => db.transaction(store, mode).objectStore(store);
+const dbGet = (store, key) => new Promise((r,j) => { const q=tx(store).get(key); q.onsuccess=e=>r(e.target.result); q.onerror=j; });
+const dbPut = (store, val) => new Promise((r,j) => { const q=tx(store,'readwrite').put(val); q.onsuccess=r; q.onerror=j; });
+const dbDel = (store, key) => new Promise((r,j) => { const q=tx(store,'readwrite').delete(key); q.onsuccess=r; q.onerror=j; });
+const dbAll = (store) => new Promise((r,j) => { const q=tx(store).getAll(); q.onsuccess=e=>r(e.target.result); q.onerror=j; });
+const dbClear = (store) => new Promise((r,j) => { const q=tx(store,'readwrite').clear(); q.onsuccess=r; q.onerror=j; });
+
+// ============================================================
+// Search
+// ============================================================
+function norm(s){ return (s||'').replace(/[أإآا]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').toLowerCase(); }
+
+function onSearch(val) {
+  const sugDiv = document.getElementById('suggestions');
+  const q = val.trim();
+  selIdx = -1;
+  if (!q) { sugDiv.innerHTML=''; sugDiv.classList.remove('active'); return; }
+  const nq = norm(q);
+  filteredItems = ORIGINAL_DATA.filter(item => norm(item['اسم البند']).includes(nq) || (item['رقم البند']||'').includes(q));
+  if (!filteredItems.length) {
+    sugDiv.innerHTML = `<div class="no-results">لا توجد نتائج مطابقة</div>`;
+    sugDiv.classList.add('active'); return;
+  }
+  sugDiv.innerHTML = filteredItems.slice(0,30).map((item,i) => {
+    const name = item['اسم البند']||'';
+    const num  = item['رقم البند']||'';
+    const idx  = norm(name).indexOf(nq);
+    const hl   = idx>=0 ? name.slice(0,idx)+`<span class="hl">${name.slice(idx,idx+q.length)}</span>`+name.slice(idx+q.length) : name;
+    return `<div class="sug-item" data-idx="${i}" onmousedown="selectItem(${i})">
+      <span class="sug-num">${num||'—'}</span>
+      <span class="sug-name">${hl}</span>
+      <span class="sug-sheet">${item['الورقة']}</span>
+    </div>`;
+  }).join('');
+  sugDiv.classList.add('active');
+}
+
+function handleKey(e) {
+  const items = document.querySelectorAll('.sug-item');
+  if (e.key==='ArrowDown') { e.preventDefault(); selIdx=Math.min(selIdx+1,items.length-1); updSel(items); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); selIdx=Math.max(selIdx-1,0); updSel(items); }
+  else if (e.key==='Enter') { e.preventDefault(); if(selIdx>=0&&filteredItems[selIdx])selectItem(selIdx); else if(filteredItems.length===1)selectItem(0); }
+  else if (e.key==='Escape') { document.getElementById('suggestions').classList.remove('active'); }
+}
+function updSel(items){ items.forEach((el,i)=>el.classList.toggle('sel',i===selIdx)); if(selIdx>=0)items[selIdx].scrollIntoView({block:'nearest'}); }
+
+document.addEventListener('click', e => { if(!e.target.closest('.search-wrapper')) document.getElementById('suggestions').classList.remove('active'); });
+
+// ============================================================
+// Select & Render
+// ============================================================
+async function selectItem(idx) {
+  const item = filteredItems[idx];
+  if (!item) return;
+  // Clear search box and hide suggestions
+  document.getElementById('searchInput').value = '';
+  document.getElementById('suggestions').innerHTML = '';
+  document.getElementById('suggestions').classList.remove('active');
+  filteredItems = [];
+  currentItemId = item.id;
+  let data = await dbGet(STORE_ITEMS, item.id);
+  if (!data) data = JSON.parse(JSON.stringify(item));
+  let ctData = await dbGet(STORE_CONTRACTORS, item.id);
+  let contractors = ctData ? ctData.list : [];
+  renderItem(data, contractors);
+}
+
+function calcTotal(elements) {
+  return elements.reduce((s,el) => s + (parseFloat(el['الكمية'])||0)*(parseFloat(el['سعر الوحدة'])||0), 0);
+}
+
+function renderItem(data, contractors) {
+  currentItemId = data.id;
+  const elements = data['العناصر']||[];
+  const total = calcTotal(elements);
+
+  document.getElementById('itemNumTag').textContent = data['رقم البند'] ? `رقم البند: ${data['رقم البند']}` : 'بدون رقم';
+  document.getElementById('itemSheetTag').textContent = data['الورقة']||'';
+  document.getElementById('itemName').textContent = data['اسم البند']||'';
+  document.getElementById('itemUnit').textContent = data['الوحدة'] ? `الوحدة: ${data['الوحدة']}` : '';
+
+  // Stats
+  const minCt = contractors.length ? Math.min(...contractors.map(c=>c.price)) : null;
+  let statsHTML = `<div class="stat-item">عدد العناصر: <span class="stat-val">${elements.length}</span></div>
+    <div class="stat-item">الإجمالي المحسوب: <span class="stat-val" style="color:#34d399">${fmt(total)}</span></div>`;
+  if (minCt) statsHTML += `<div class="stat-item">أفضل عرض مقاول: <span class="stat-val" style="color:#f59e0b">${fmt(minCt)}</span></div>`;
+  document.getElementById('statsBar').innerHTML = statsHTML;
+
+  // Elements table
+  const tbody = document.getElementById('itemBody');
+  tbody.innerHTML = elements.map((el,i) => {
+    const q = parseFloat(el['الكمية'])||0, p = parseFloat(el['سعر الوحدة'])||0;
+    return `<tr>
+      <td style="color:#64748b;font-size:.78rem;font-weight:600">${i+1}</td>
+      <td class="td-name">${el['اسم الصنف']||''}</td>
+      <td class="td-unit">${el['الوحدة']||''}</td>
+      <td><input class="editable qty" type="number" step="any" value="${q}" data-row="${i}" data-field="qty" oninput="onCellChange(this)"></td>
+      <td><input class="editable price" type="number" step="any" value="${p}" data-row="${i}" data-field="price" oninput="onCellChange(this)"></td>
+      <td class="td-total" id="rt_${i}">${fmt(q*p)}</td>
+    </tr>`;
+  }).join('') +
+  `<tr class="total-row">
+    <td colspan="5" class="total-label">&#x2211; إجمالي قيمة الأصناف المطلوب شرائها</td>
+    <td class="total-amount" id="grandTotal">${fmt(total)}</td>
+  </tr>`;
+
+  document.getElementById('itemPanel').classList.add('visible');
+  document.getElementById('emptyState').style.display = 'none';
+
+  renderContractors(contractors, total);
+  document.getElementById('ctName').value = '';
+  document.getElementById('ctPrice').value = '';
+}
+
+function onCellChange(input) {
+  const row = parseInt(input.dataset.row);
+  const qtyI = document.querySelector(`input[data-row="${row}"][data-field="qty"]`);
+  const priceI = document.querySelector(`input[data-row="${row}"][data-field="price"]`);
+  if (!qtyI||!priceI) return;
+  const rt = document.getElementById(`rt_${row}`);
+  const rowTotal = (parseFloat(qtyI.value)||0)*(parseFloat(priceI.value)||0);
+  if (rt) rt.textContent = fmt(rowTotal);
+  // Recalc grand
+  let total = 0;
+  document.querySelectorAll('input[data-field="qty"]').forEach(qi => {
+    const pi = document.querySelector(`input[data-row="${qi.dataset.row}"][data-field="price"]`);
+    if (pi) total += (parseFloat(qi.value)||0)*(parseFloat(pi.value)||0);
+  });
+  const gt = document.getElementById('grandTotal');
+  if (gt) gt.textContent = fmt(total);
+  // Update contractor table diffs
+  if (currentItemId) {
+    dbGet(STORE_CONTRACTORS, currentItemId).then(ctData => {
+      renderContractors(ctData?ctData.list:[], total);
+    });
+  }
+}
+
+// ============================================================
+// Contractors
+// ============================================================
+function renderContractors(list, ourTotal) {
+  const wrap = document.getElementById('contractorsList');
+  if (!list||!list.length) {
+    wrap.innerHTML = `<div class="no-contractors">لا توجد عروض مقاولين محفوظة — أضف عرضاً باستخدام الحقول أعلاه</div>`;
+    return;
+  }
+  const sorted = [...list].sort((a,b)=>a.price-b.price);
+  const minPrice = sorted[0].price;
+  wrap.innerHTML = `<table class="contractors-table">
+    <thead><tr>
+      <th style="width:38px">م</th>
+      <th style="text-align:right">اسم المقاول / العرض</th>
+      <th>السعر</th>
+      <th>الفرق عن أقل سعر</th>
+      <th>الفرق عن تكلفتنا</th>
+      <th style="width:80px">حذف</th>
+    </tr></thead>
+    <tbody>
+    ${sorted.map((ct,i) => {
+      const diffMin = ct.price - minPrice;
+      const diffOur = ct.price - ourTotal;
+      const pctOur  = ourTotal>0 ? ((diffOur/ourTotal)*100).toFixed(1) : '—';
+      const sign    = v => v>=0?'+':'';
+      return `<tr>
+        <td style="color:#64748b;font-size:.78rem">${i+1}</td>
+        <td style="text-align:right;font-weight:600;color:#e2e8f0">
+          ${i===0?'<span class="best-badge">الأرخص</span>':''}${ct.name}
+        </td>
+        <td class="ct-price">${fmt(ct.price)}</td>
+        <td class="${diffMin===0?'ct-rank-1':diffMin>0?'ct-diff-neg':'ct-diff-pos'}">
+          ${diffMin===0?'—':sign(diffMin)+fmt(diffMin)}
+        </td>
+        <td class="${diffOur>=0?'ct-diff-neg':'ct-diff-pos'}">
+          ${sign(diffOur)}${fmt(diffOur)} (${sign(pctOur)}${pctOur}%)
+        </td>
+        <td><button class="btn btn-danger btn-sm" onclick="removeContractor('${ct.id}')">&#x2715;</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function addContractorPrice() {
+  const name  = document.getElementById('ctName').value.trim();
+  const price = parseFloat(document.getElementById('ctPrice').value);
+  if (!name) { showToast('أدخل اسم المقاول أو العرض','error'); return; }
+  if (!price||price<=0) { showToast('أدخل سعراً صحيحاً','error'); return; }
+  if (!currentItemId) return;
+  let ctData = await dbGet(STORE_CONTRACTORS, currentItemId);
+  let list = ctData ? ctData.list : [];
+  list.push({ id: Date.now().toString(), name, price });
+  await dbPut(STORE_CONTRACTORS, { itemId: currentItemId, list });
+  document.getElementById('ctName').value='';
+  document.getElementById('ctPrice').value='';
+  // Recalc current total
+  let total = 0;
+  document.querySelectorAll('input[data-field="qty"]').forEach(qi => {
+    const pi = document.querySelector(`input[data-row="${qi.dataset.row}"][data-field="price"]`);
+    if (pi) total += (parseFloat(qi.value)||0)*(parseFloat(pi.value)||0);
+  });
+  renderContractors(list, total);
+  showToast(`تم إضافة عرض "${name}" بنجاح ✓`,'success');
+}
+
+async function removeContractor(ctId) {
+  if (!currentItemId) return;
+  let ctData = await dbGet(STORE_CONTRACTORS, currentItemId);
+  if (!ctData) return;
+  ctData.list = ctData.list.filter(c=>c.id!==ctId);
+  await dbPut(STORE_CONTRACTORS, ctData);
+  let total = 0;
+  document.querySelectorAll('input[data-field="qty"]').forEach(qi => {
+    const pi = document.querySelector(`input[data-row="${qi.dataset.row}"][data-field="price"]`);
+    if (pi) total += (parseFloat(qi.value)||0)*(parseFloat(pi.value)||0);
+  });
+  renderContractors(ctData.list, total);
+  showToast('تم حذف العرض','success');
+}
+
+// ============================================================
+// Save / Reset Item
+// ============================================================
+async function saveItem() {
+  if (!currentItemId) return;
+  const orig = ORIGINAL_DATA.find(x=>x.id===currentItemId);
+  if (!orig) return;
+  const elements = JSON.parse(JSON.stringify(orig['العناصر']));
+  document.querySelectorAll('input[data-field="qty"]').forEach(inp => {
+    const r=parseInt(inp.dataset.row); if(elements[r]) elements[r]['الكمية']=parseFloat(inp.value)||0;
+  });
+  document.querySelectorAll('input[data-field="price"]').forEach(inp => {
+    const r=parseInt(inp.dataset.row); if(elements[r]) elements[r]['سعر الوحدة']=parseFloat(inp.value)||0;
+  });
+  await dbPut(STORE_ITEMS, {...orig, العناصر:elements});
+  showToast('تم حفظ التعديلات بنجاح ✓','success');
+}
+
+async function resetItemToDefault() {
+  if (!currentItemId) return;
+  await dbDel(STORE_ITEMS, currentItemId);
+  const orig = ORIGINAL_DATA.find(x=>x.id===currentItemId);
+  if (orig) {
+    const ctData = await dbGet(STORE_CONTRACTORS, currentItemId);
+    renderItem(JSON.parse(JSON.stringify(orig)), ctData?ctData.list:[]);
+  }
+  showToast('تم استعادة البيانات الأصلية ✓','success');
+}
+
+// ============================================================
+// Export / Import
+// ============================================================
+async function exportDB() {
+  const items = await dbAll(STORE_ITEMS);
+  const contractors = await dbAll(STORE_CONTRACTORS);
+  // Merge originals with saved overrides
+  const mergedItems = ORIGINAL_DATA.map(orig => items.find(x=>x.id===orig.id)||orig);
+  const blob = new Blob([JSON.stringify({version:2,exportDate:new Date().toISOString(),items:mergedItems,contractors},null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`كميات_واسعار_${new Date().toLocaleDateString('ar-SA').replace(/\//g,'-')}.json`; a.click();
+  URL.revokeObjectURL(url);
+  showToast('تم تصدير قاعدة البيانات بنجاح ✓','success');
+}
+
+async function importDB(event) {
+  const file = event.target.files[0]; if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const items = parsed.items||parsed.data||[];
+    const contractors = parsed.contractors||[];
+    if (!Array.isArray(items)) throw new Error('صيغة غير صحيحة');
+    await dbClear(STORE_ITEMS);
+    await dbClear(STORE_CONTRACTORS);
+    for (const item of items) if (item.id) await dbPut(STORE_ITEMS, item);
+    for (const ct of contractors) if (ct.itemId) await dbPut(STORE_CONTRACTORS, ct);
+    showToast(`تم الاستيراد بنجاح — ${items.length} بند ✓`,'success');
+    if (currentItemId) {
+      const data = await dbGet(STORE_ITEMS, currentItemId)||ORIGINAL_DATA.find(x=>x.id===currentItemId);
+      const ctData = await dbGet(STORE_CONTRACTORS, currentItemId);
+      if (data) renderItem(data, ctData?ctData.list:[]);
+    }
+  } catch(e) { showToast('خطأ في استيراد الملف: '+e.message,'error'); }
+  event.target.value='';
+}
+
+// ============================================================
+// Reset All
+// ============================================================
+function showResetModal(){ document.getElementById('resetModal').classList.add('active'); }
+function closeModal(){ document.getElementById('resetModal').classList.remove('active'); }
+async function resetAllData() {
+  await dbClear(STORE_ITEMS); await dbClear(STORE_CONTRACTORS);
+  closeModal(); showToast('تم إعادة تعيين جميع البيانات ✓','success');
+  if (currentItemId) {
+    const orig = ORIGINAL_DATA.find(x=>x.id===currentItemId);
+    if (orig) renderItem(JSON.parse(JSON.stringify(orig)),[]);
+  }
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function fmt(n) {
+  if (n===null||n===undefined||isNaN(n)) return '—';
+  return new Intl.NumberFormat('ar-SA',{maximumFractionDigits:2}).format(n);
+}
+let toastTimer;
+function showToast(msg,type='success') {
+  const t=document.getElementById('toast');
+  t.innerHTML=`${type==='success'?'✓':'✗'} ${msg}`;
+  t.className=`toast ${type} show`;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// Init
+openDB().then(()=>showToast('قاعدة البيانات جاهزة — ابدأ بالبحث عن بند','success')).catch(e=>showToast('خطأ: '+e,'error'));
+</script>
+</body>
+</html>

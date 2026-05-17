@@ -8,7 +8,7 @@ import {
   analyticsResultsTable,
   standardReferenceTable,
 } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { STANDARD_DATA } from "./boqStandardData.js";
 
 const router = Router();
@@ -261,8 +261,6 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
       groups[key].push(row);
     }
 
-    await db.delete(analyticsResultsTable);
-
     const results: {
       boqItemName: string;
       elementName: string;
@@ -363,9 +361,38 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
     }
 
     if (results.length > 0) {
-      const CHUNK = 200;
+      const CHUNK = 100;
       for (let i = 0; i < results.length; i += CHUNK) {
-        await db.insert(analyticsResultsTable).values(results.slice(i, i + CHUNK));
+        await db.insert(analyticsResultsTable)
+          .values(results.slice(i, i + CHUNK))
+          .onConflictDoUpdate({
+            target: [analyticsResultsTable.boqItemName, analyticsResultsTable.elementName],
+            set: {
+              elementCode: sql`excluded.element_code`,
+              nProjects: sql`excluded.n_projects`,
+              nOutliers: sql`excluded.n_outliers`,
+              meanCf: sql`excluded.mean_cf`,
+              medianCf: sql`excluded.median_cf`,
+              stdCf: sql`excluded.std_cf`,
+              p50Cf: sql`excluded.p50_cf`,
+              p75Cf: sql`excluded.p75_cf`,
+              p80Cf: sql`excluded.p80_cf`,
+              p90Cf: sql`excluded.p90_cf`,
+              minCf: sql`excluded.min_cf`,
+              maxCf: sql`excluded.max_cf`,
+              iqrCf: sql`excluded.iqr_cf`,
+              avgOverAllocPct: sql`excluded.avg_over_alloc_pct`,
+              medianOverAllocPct: sql`excluded.median_over_alloc_pct`,
+              recommendedFactor: sql`excluded.recommended_factor`,
+              avgAllocQty: sql`excluded.avg_alloc_qty`,
+              avgUsedQty: sql`excluded.avg_used_qty`,
+              medianUsedQty: sql`excluded.median_used_qty`,
+              avgClearedAmount: sql`excluded.avg_cleared_amount`,
+              efficiencyRating: sql`excluded.efficiency_rating`,
+              stabilityScore: sql`excluded.stability_score`,
+              computedAt: sql`now()`,
+            },
+          });
       }
     }
 

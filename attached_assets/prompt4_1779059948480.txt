@@ -1,0 +1,422 @@
+You are acting as a senior enterprise software architect, ERP analytics engineer, ETL architect, construction cost-control systems engineer, statistical analytics specialist, and Arabic enterprise UX architect.
+
+Your task is to REFRACTOR, EXTEND, and UPGRADE the EXISTING web application into a cumulative historical consumption intelligence platform for construction BOQ items and elements.
+
+IMPORTANT:
+
+- DO NOT rebuild the application from scratch.
+- Preserve all existing functionality.
+- Preserve current frontend/backend stack unless necessary.
+- Preserve mobile responsiveness.
+- Maintain compatibility with current analytics functionality.
+- The system must evolve incrementally into a production-grade platform.
+
+====================================================
+CRITICAL ARCHITECTURAL CHANGE
+
+The application MUST become:
+
+A persistent cumulative learning system.
+
+NOT:
+
+- a temporary file analyzer
+- a session-based reporting tool
+- a one-time Excel processor
+
+====================================================
+CORE BUSINESS PURPOSE
+
+The system purpose is:
+
+1. Analyze historical completed-project data.
+2. Discover REAL historical consumption behavior.
+3. Detect chronic over-allocation.
+4. Learn from accumulated historical projects.
+5. Generate intelligent future allocation recommendations.
+6. Compare standard quantities/prices against actual historical usage.
+
+====================================================
+IMPORTANT DATA SOURCES
+
+The system has TWO PRIMARY DATA SOURCES:
+
+---
+
+SOURCE 1 — STANDARD REFERENCE DATABASE
+
+Currently exists as uploaded HTML code.
+
+Contains:
+
+- BOQ items
+- Elements inside each item
+- Standard quantities
+- Standard prices
+- Units
+
+IMPORTANT:
+This HTML code MUST NOT remain a standalone page.
+
+It MUST be converted into:
+
+- proper database tables
+- structured persistent storage
+
+This becomes:
+STANDARD REFERENCE DATABASE.
+
+====================================================
+SOURCE 2 — HISTORICAL EXCEL DATASETS
+
+Uploaded Excel files contain historical project execution data including:
+
+- BOQ item
+- Element/item name
+- Requested quantity
+- Cleared quantity
+- Requested amount
+- Cleared amount
+- Project information
+
+These files represent REAL historical behavior.
+
+====================================================
+VERY IMPORTANT BUSINESS RULE
+
+Historical CLEARED quantities and CLEARED amounts are the PRIMARY truth source.
+
+Requested quantities may contain:
+
+- human bias
+- overestimation
+- excessive safety margins
+
+Therefore:
+The recommendation engine MUST prioritize ACTUAL historical cleared usage.
+
+====================================================
+CRITICAL SYSTEM REQUIREMENT
+
+The application MUST become cumulative and persistent.
+
+This means:
+
+When the user uploads new Excel files:
+
+- Existing analytics MUST NOT be deleted.
+- Existing historical data MUST remain stored.
+- Existing recommendations MUST remain stored.
+- New projects must be ADDED to the accumulated historical database.
+
+The system must continuously learn and improve over time.
+
+====================================================
+IMPORTANT
+
+If a BOQ item already exists:
+
+- update its analytics
+- update its recommendations
+- update its statistical profile
+
+DO NOT recreate everything from scratch.
+
+====================================================
+NEW BOQ ITEMS
+
+If a newly uploaded Excel file contains:
+
+- a new BOQ item
+- or a new element
+
+Then:
+
+- automatically create it in the database
+- begin accumulating history for it
+
+====================================================
+INCREMENTAL ANALYTICS
+
+Analytics recalculation must be incremental.
+
+DO NOT:
+
+- recalculate the entire system every upload
+
+ONLY:
+
+- update affected items/elements/projects
+
+====================================================
+REQUIRED SYSTEM MODULES
+
+---
+
+MODULE 1 — STANDARD REFERENCE ENGINE
+
+Convert the uploaded HTML reference system into proper database tables such as:
+
+- boq_items
+- boq_elements
+- standard_reference
+
+Store:
+
+- standard quantities
+- standard prices
+- units
+- item names
+- element names
+
+The application must allow:
+
+- retrieving all elements of any BOQ item
+- displaying standard quantities/prices instantly
+
+====================================================
+MODULE 2 — EXCEL IMPORT ENGINE
+
+Responsibilities:
+
+- Import .xlsx files
+- Parse Arabic columns correctly
+- Normalize numeric values
+- Handle empty rows/cells
+- Detect duplicates
+- Validate imported records
+
+Normalize imported data into structured schema such as:
+
+| project_id | project_name | boq_item | element_name | requested_qty | cleared_qty | requested_amount | cleared_amount |
+
+====================================================
+MODULE 3 — HISTORICAL DATABASE LAYER
+
+Store ALL historical imported projects permanently.
+
+The historical database must become:
+
+- cumulative
+- persistent
+- searchable
+- incrementally expandable
+
+DO NOT treat uploaded Excel files as temporary runtime data.
+
+Uploaded files are only:
+DATA FEEDS.
+
+The DATABASE is the permanent source of truth.
+
+====================================================
+MODULE 4 — MATCHING ENGINE
+
+Automatically match:
+
+Historical Excel elements
+WITH
+Standard reference elements
+
+Using:
+
+- item names
+- element names
+- codes when available
+
+====================================================
+MODULE 5 — HISTORICAL ANALYTICS ENGINE
+
+For EACH ELEMENT inside EACH BOQ ITEM calculate:
+
+---
+
+A) Consumption Factor
+
+Consumption Factor =
+Cleared Quantity / Requested Quantity
+
+---
+
+B) Over Allocation
+
+Over Allocation =
+Requested Quantity - Cleared Quantity
+
+---
+
+C) Over Allocation %
+
+((Requested Quantity - Cleared Quantity)
+/ Cleared Quantity) * 100
+
+---
+
+D) Allocation Accuracy
+
+Accuracy =
+Cleared Quantity / Requested Quantity
+
+====================================================
+STATISTICAL REQUIREMENTS
+
+For every element calculate:
+
+- Mean
+- Median
+- Standard deviation
+- P50
+- P75
+- P80
+- P90
+- Min
+- Max
+- IQR
+
+IMPORTANT:
+DO NOT rely on averages only.
+
+Median and percentile analysis are mandatory.
+
+====================================================
+OUTLIER DETECTION
+
+Implement:
+
+- IQR outlier filtering
+- Z-score outlier filtering
+
+Abnormal projects must not distort recommendations.
+
+====================================================
+MODULE 6 — RECOMMENDATION ENGINE
+
+Generate intelligent recommendations for each element using:
+
+1. Standard quantity
+2. Standard price
+3. Historical actual cleared quantity
+4. Historical actual cleared amount
+5. Median historical usage
+6. P75/P80 safety thresholds
+7. Historical volatility/stability
+
+====================================================
+FINAL USER EXPERIENCE
+
+When the user opens a BOQ item:
+
+The application must display:
+
+| العنصر | الكمية المعيارية | السعر المعياري | الوسيط التاريخي للاستهلاك | P80 | الكمية المقترحة | المبلغ المقترح | نسبة المبالغة التاريخية |
+
+====================================================
+VERY IMPORTANT
+
+The system must display BOTH:
+
+1. Standard theoretical values
+2. Historical actual values
+
+side-by-side.
+
+====================================================
+ARABIC REQUIREMENTS
+
+The application MUST become FULLY Arabic.
+
+NOT partially translated.
+
+Implement:
+
+- Full RTL
+- Arabic dashboards
+- Arabic tables
+- Arabic analytics terminology
+- Arabic charts
+- Arabic reports
+- Arabic exports
+
+Use professional engineering terminology.
+
+====================================================
+VISUAL ANALYTICS
+
+Generate:
+
+- Distribution charts
+- Standard vs actual comparisons
+- Over-allocation rankings
+- Historical trend charts
+- Most overestimated elements
+- Most stable elements
+- Most volatile elements
+
+====================================================
+DATABASE REQUIREMENTS
+
+Create proper normalized tables such as:
+
+- projects
+- boq_items
+- boq_elements
+- standard_reference
+- historical_usage
+- analytics_results
+- recommendations
+
+====================================================
+PERFORMANCE REQUIREMENTS
+
+The system must:
+
+- handle large Excel datasets efficiently
+- support incremental imports
+- cache analytics
+- avoid unnecessary recalculation
+- optimize queries
+- support long-term accumulation of historical data
+
+====================================================
+FINAL SYSTEM OBJECTIVE
+
+Transform the current application from:
+
+- a simple analytics/reporting tool
+
+into:
+
+A professional Arabic historical construction cost intelligence platform that continuously learns from accumulated projects over time.
+
+The system must determine:
+
+For each element inside each BOQ item:
+
+- what quantity is ACTUALLY needed historically,
+- what amount is ACTUALLY consumed historically,
+- what quantity SHOULD be allocated,
+- and what amount SHOULD be allocated in future projects.
+
+====================================================
+IMPORTANT IMPLEMENTATION ORDER
+
+1. Convert standard HTML system into database
+2. Build cumulative database layer
+3. Build Excel import engine
+4. Build matching engine
+5. Build analytics engine
+6. Build recommendation engine
+7. Convert UI to Arabic RTL
+8. Add visual dashboards
+9. Optimize performance
+
+====================================================
+IMPORTANT
+
+DO NOT generate mock/demo data.
+
+Use ONLY:
+
+- real uploaded Excel data
+- real uploaded HTML reference system
+- real accumulated historical database

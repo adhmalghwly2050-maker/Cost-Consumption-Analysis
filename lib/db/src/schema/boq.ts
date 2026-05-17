@@ -5,11 +5,9 @@ import {
   numeric,
   integer,
   timestamp,
-  jsonb,
-  boolean,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
 
 export const importBatchesTable = pgTable("import_batches", {
   id: serial("id").primaryKey(),
@@ -63,10 +61,7 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   maxCf: numeric("max_cf", { precision: 18, scale: 6 }),
   iqrCf: numeric("iqr_cf", { precision: 18, scale: 6 }),
   avgOverAllocPct: numeric("avg_over_alloc_pct", { precision: 18, scale: 4 }),
-  medianOverAllocPct: numeric("median_over_alloc_pct", {
-    precision: 18,
-    scale: 4,
-  }),
+  medianOverAllocPct: numeric("median_over_alloc_pct", { precision: 18, scale: 4 }),
   recommendedFactor: numeric("recommended_factor", { precision: 18, scale: 6 }),
   avgAllocQty: numeric("avg_alloc_qty", { precision: 18, scale: 6 }),
   avgUsedQty: numeric("avg_used_qty", { precision: 18, scale: 6 }),
@@ -75,7 +70,7 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   efficiencyRating: text("efficiency_rating"),
   stabilityScore: numeric("stability_score", { precision: 10, scale: 4 }),
   computedAt: timestamp("computed_at").defaultNow().notNull(),
-});
+}, (t) => [unique("analytics_item_element_key").on(t.boqItemName, t.elementName)]);
 
 export const standardReferenceTable = pgTable("standard_reference", {
   id: serial("id").primaryKey(),
