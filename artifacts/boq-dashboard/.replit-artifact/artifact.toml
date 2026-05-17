@@ -1,0 +1,30 @@
+kind = "web"
+previewPath = "/"
+title = "BOQ Consumption Analytics"
+version = "1.0.0"
+id = "artifacts/boq-dashboard"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23658
+
+[services.development]
+run = "pnpm --filter @workspace/boq-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/boq-dashboard", "run", "build" ]
+publicDir = "artifacts/boq-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23658"
+BASE_PATH = "/"

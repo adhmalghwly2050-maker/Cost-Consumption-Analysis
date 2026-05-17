@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: BOQ Consumption Analytics API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: boq
+    description: BOQ analysis operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /boq/run-analysis:
+    post:
+      operationId: runAnalysis
+      tags: [boq]
+      summary: Run BOQ analysis pipeline
+      description: Triggers the Python ETL and statistical analysis pipeline
+      responses:
+        "200":
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisRunResult"
+        "500":
+          description: Analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /boq/dashboard-data:
+    get:
+      operationId: getDashboardData
+      tags: [boq]
+      summary: Get dashboard data
+      description: Returns precomputed analysis results for the dashboard
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardData"
+        "404":
+          description: Analysis not yet run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /boq/analysis-status:
+    get:
+      operationId: getAnalysisStatus
+      tags: [boq]
+      summary: Get analysis status
+      description: Returns the current status of the analysis pipeline
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisStatus"
+
+  /boq/download/{fileType}:
+    get:
+      operationId: downloadFile
+      tags: [boq]
+      summary: Download analysis output file
+      parameters:
+        - name: fileType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [csv, excel, master-csv]
+      responses:
+        "200":
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +118,154 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    AnalysisRunResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        duration_ms:
+          type: number
+        output_paths:
+          type: object
+          properties:
+            master_csv:
+              type: string
+            analysis_csv:
+              type: string
+            excel:
+              type: string
+            dashboard_json:
+              type: string
+      required:
+        - success
+        - message
+
+    AnalysisStatus:
+      type: object
+      properties:
+        has_results:
+          type: boolean
+        last_run:
+          type: ["string", "null"]
+        files_found:
+          type: integer
+        output_files:
+          type: array
+          items:
+            type: string
+      required:
+        - has_results
+        - files_found
+        - output_files
+
+    KPIs:
+      type: object
+      properties:
+        total_items_analyzed:
+          type: ["integer", "null"]
+        total_projects:
+          type: ["integer", "null"]
+        total_rows_extracted:
+          type: ["integer", "null"]
+        overall_consumption_rate:
+          type: ["number", "null"]
+        overall_over_allocation_pct:
+          type: ["number", "null"]
+        median_consumption_factor:
+          type: ["number", "null"]
+        items_with_poor_efficiency:
+          type: ["integer", "null"]
+        items_with_excellent_efficiency:
+          type: ["integer", "null"]
+
+    AnalysisRecord:
+      type: object
+      properties:
+        item_code:
+          type: ["string", "null"]
+        item_desc:
+          type: ["string", "null"]
+        element_id:
+          type: ["string", "null"]
+        element_desc1:
+          type: ["string", "null"]
+        n_projects:
+          type: ["integer", "null"]
+        n_outliers:
+          type: ["integer", "null"]
+        median_cf:
+          type: ["number", "null"]
+        mean_cf:
+          type: ["number", "null"]
+        p75_cf:
+          type: ["number", "null"]
+        p80_cf:
+          type: ["number", "null"]
+        p90_cf:
+          type: ["number", "null"]
+        std_cf:
+          type: ["number", "null"]
+        min_cf:
+          type: ["number", "null"]
+        max_cf:
+          type: ["number", "null"]
+        avg_over_alloc_pct:
+          type: ["number", "null"]
+        median_over_alloc_pct:
+          type: ["number", "null"]
+        recommended_factor:
+          type: ["number", "null"]
+        avg_alloc_qty:
+          type: ["number", "null"]
+        avg_used_qty:
+          type: ["number", "null"]
+        median_used_qty:
+          type: ["number", "null"]
+        efficiency_rating:
+          type: ["string", "null"]
+
+    InsightsData:
+      type: object
+      properties:
+        worst_over_allocated:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisRecord"
+        most_stable:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisRecord"
+        most_volatile:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisRecord"
+        efficiency_distribution:
+          type: object
+
+    DashboardData:
+      type: object
+      properties:
+        kpis:
+          $ref: "#/components/schemas/KPIs"
+        analysis:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisRecord"
+        insights:
+          $ref: "#/components/schemas/InsightsData"
+        column_samples:
+          type: object
+      required:
+        - kpis
+        - analysis
+        - insights
