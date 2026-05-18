@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   BarChart3, Upload, Search, BookOpen, Home, Menu, X, TrendingUp,
   Database, Zap, TrendingDown, GitBranch, Shield, Layers, FlaskConical,
-  Activity, ScrollText
+  Activity, ScrollText, Brain
 } from "lucide-react";
 
 const navGroups = [
@@ -40,6 +40,17 @@ const navGroups = [
       { path: "/standard", label: "المرجع المعياري", icon: BookOpen },
     ],
   },
+  {
+    label: "محرك الاستهلاك الكلي",
+    highlight: true,
+    items: [
+      { path: "/material-hub", label: "نظرة عامة — المحرك", icon: Brain },
+      { path: "/material-forecast", label: "تقدير احتياج المشروع", icon: TrendingUp },
+      { path: "/material-historical", label: "الذاكرة التاريخية", icon: Database },
+      { path: "/material-dictionary", label: "قاموس المواد الموحّد", icon: BookOpen },
+      { path: "/material-reports", label: "التقارير التنفيذية للمواد", icon: BarChart3 },
+    ],
+  },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -70,7 +81,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
           {navGroups.map((group) => (
             <div key={group.label}>
-              <div className="px-3 py-1 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
+              <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider ${
+                (group as { highlight?: boolean }).highlight
+                  ? "text-primary/80"
+                  : "text-muted-foreground/60"
+              }`}>
                 {group.label}
               </div>
               <div className="space-y-0.5 mt-1">

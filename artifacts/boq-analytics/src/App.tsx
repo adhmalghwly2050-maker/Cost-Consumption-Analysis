@@ -14,6 +14,11 @@ import StandardEvolutionPage from "@/pages/StandardEvolution";
 import DataGovernancePage from "@/pages/DataGovernance";
 import StabilityReportPage from "@/pages/StabilityReport";
 import VolatilityReportPage from "@/pages/VolatilityReport";
+import MaterialHubPage from "@/pages/MaterialHub";
+import MaterialDictionaryPage from "@/pages/MaterialDictionary";
+import MaterialForecastPage from "@/pages/MaterialForecast";
+import MaterialHistoricalPage from "@/pages/MaterialHistorical";
+import MaterialReportsPage from "@/pages/MaterialReports";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 
@@ -40,6 +45,11 @@ function Router() {
         <Route path="/data-governance" component={DataGovernancePage} />
         <Route path="/stability-report" component={StabilityReportPage} />
         <Route path="/volatility-report" component={VolatilityReportPage} />
+        <Route path="/material-hub" component={MaterialHubPage} />
+        <Route path="/material-dictionary" component={MaterialDictionaryPage} />
+        <Route path="/material-forecast" component={MaterialForecastPage} />
+        <Route path="/material-historical" component={MaterialHistoricalPage} />
+        <Route path="/material-reports" component={MaterialReportsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

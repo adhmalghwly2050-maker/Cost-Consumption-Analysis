@@ -1,0 +1,387 @@
+You are acting as a senior enterprise software architect, construction ERP intelligence engineer, quantity-surveying systems specialist, material-demand forecasting engineer, statistical modeling architect, and historical consumption analytics specialist.
+
+Your task is to ADD a NEW strategic module to the EXISTING application.
+
+IMPORTANT:
+
+- Preserve all current functionality.
+- Extend the current architecture incrementally.
+- Maintain Arabic-first RTL support.
+- Preserve mobile responsiveness.
+- Do NOT rebuild the application.
+
+====================================================
+NEW STRATEGIC MODULE
+
+Create a new professional system section called:
+
+"محرك التنبؤ بالاستهلاك الكلي للعناصر"
+
+English internal architecture name:
+Project Material Consumption Intelligence Engine
+
+====================================================
+CORE BUSINESS OBJECTIVE
+
+The current system analyzes:
+
+| BOQ Item + Element |
+
+individually.
+
+The new module must evolve the platform into:
+
+A PROJECT-LEVEL MATERIAL CONSUMPTION INTELLIGENCE SYSTEM.
+
+====================================================
+CORE BUSINESS REQUIREMENT
+
+The system must become capable of estimating:
+
+TOTAL PROJECT MATERIAL DEMAND
+
+based on:
+
+- project BOQ quantities
+- historical project behavior
+- historical element consumption patterns
+
+====================================================
+IMPORTANT BUSINESS LOGIC
+
+Many elements appear repeatedly across multiple BOQ items.
+
+Example:
+
+- Cement
+- Sand
+- Water
+- Rebar
+- Gravel
+
+These materials may exist inside:
+
+- foundations
+- handholes
+- inspection chambers
+- concrete works
+- slabs
+- walls
+- ducts
+- etc.
+
+====================================================
+REQUIRED SYSTEM EVOLUTION
+
+The platform must no longer analyze materials ONLY inside isolated BOQ items.
+
+It must additionally understand:
+
+TOTAL MATERIAL CONSUMPTION ACROSS THE ENTIRE PROJECT.
+
+====================================================
+CRITICAL IMPLEMENTATION REQUIREMENT
+
+The system must build historical relationships between:
+
+1. BOQ item quantities
+   AND
+2. Total material consumption quantities
+
+====================================================
+VERY IMPORTANT
+
+The system MUST use:
+
+- historical normalized per-unit consumption
+- accumulated project data
+
+NOT simplistic fixed formulas only.
+
+====================================================
+REQUIRED NEW MODULES
+
+---
+
+MODULE 1 — UNIFIED MATERIAL DICTIONARY
+
+Create a centralized material master database.
+
+Purpose:
+Unify repeated material names across projects and BOQ items.
+
+====================================================
+EXAMPLES
+
+The following must map to ONE material entity:
+
+- اسمنت
+- إسمنت
+- cement
+
+====================================================
+CREATE TABLES SUCH AS
+
+- material_master
+- material_aliases
+- material_categories
+
+====================================================
+MODULE 2 — CONSUMPTION COEFFICIENT ENGINE
+
+For EACH:
+
+| BOQ Item + Material |
+
+calculate:
+
+---
+
+Normalized Historical Consumption
+
+Meaning:
+
+Historical Material Consumption Per ONE Unit of BOQ Item.
+
+====================================================
+EXAMPLE
+
+If:
+
+- Handhole quantity = 100
+- Cement cleared quantity = 500 bags
+
+Then:
+
+Historical Cement Consumption Coefficient =
+500 / 100 = 5 bags per handhole unit
+
+====================================================
+IMPORTANT
+
+These coefficients must be derived from:
+
+- accumulated historical execution data
+- actual cleared quantities
+
+NOT only theoretical standards.
+
+====================================================
+MODULE 3 — PROJECT-LEVEL AGGREGATION ENGINE
+
+This is the CORE new capability.
+
+====================================================
+REQUIRED FUNCTIONALITY
+
+When a project contains multiple BOQ items:
+
+Example:
+
+BOQ Item| Quantity
+Handhole| 50
+Foundation| 20
+Inspection Chamber| 15
+
+The engine must aggregate ALL material consumption across ALL BOQ items.
+
+====================================================
+EXAMPLE OUTPUT
+
+العنصر| الاحتياج الكلي المتوقع
+إسمنت| 420 كيس
+رمل| 36 م3
+ماء| 14000 لتر
+
+====================================================
+IMPORTANT
+
+Aggregation must use:
+
+- historical consumption coefficients
+- adaptive standards
+- historical median/P80 logic
+
+====================================================
+MODULE 4 — HISTORICAL MATERIAL INTELLIGENCE
+
+For EACH MATERIAL calculate:
+
+- total historical usage
+- total historical cleared amount
+- historical average demand
+- historical median demand
+- P75/P80 demand
+- project-level demand trends
+- seasonal trends if available
+- volatility
+- stability score
+
+====================================================
+MODULE 5 — PROJECT DEMAND FORECASTING ENGINE
+
+Create forecasting capability.
+
+====================================================
+INPUT
+
+Project BOQ quantities.
+
+====================================================
+OUTPUT
+
+Predicted total project demand for:
+
+- quantities
+- amounts
+- unit prices
+
+====================================================
+VERY IMPORTANT
+
+Predictions must use:
+
+- historical actual behavior
+- adaptive standards
+- confidence scoring
+- stability weighting
+
+====================================================
+MODULE 6 — MATERIAL DEMAND CONFIDENCE ENGINE
+
+For each forecast calculate:
+
+- confidence score
+- number of historical projects
+- stability index
+- volatility level
+
+====================================================
+OUTPUT EXAMPLE
+
+| العنصر | الاحتياج المتوقع | درجة الثقة | الثبات | عدد المشاريع |
+
+====================================================
+MODULE 7 — EXECUTIVE MATERIAL REPORTS
+
+Create professional Arabic executive reports.
+
+====================================================
+REPORT 1
+
+Arabic Name:
+"تقرير الاحتياج الكلي المتوقع للمشروع"
+
+====================================================
+REPORT CONTENT
+
+| العنصر | الاحتياج المتوقع | P80 | المبلغ المتوقع | الثقة |
+
+====================================================
+REPORT 2
+
+Arabic Name:
+"تقرير العناصر الأعلى استهلاكاً"
+
+====================================================
+REPORT 3
+
+Arabic Name:
+"تقرير العناصر الأعلى تذبذباً"
+
+====================================================
+REPORT 4
+
+Arabic Name:
+"تقرير مقارنة الاستهلاك النظري بالتاريخي"
+
+====================================================
+MODULE 8 — MATERIAL RELATIONSHIP ENGINE
+
+Build relationships between:
+
+- BOQ items
+- materials
+- historical consumption behavior
+
+The system should eventually become capable of:
+
+- understanding material dependency patterns
+- detecting abnormal material behavior
+- improving forecasting accuracy over time
+
+====================================================
+VERY IMPORTANT IMPLEMENTATION RULE
+
+ALL calculations MUST remain based on:
+
+---
+
+Per-unit normalized historical behavior
+
+THEN:
+aggregate to project level.
+
+====================================================
+DO NOT
+
+Use raw total project quantities directly.
+
+====================================================
+RECOMMENDED ADVANCED IMPROVEMENT
+
+Implement weighted adaptive coefficients.
+
+Meaning:
+
+Recent projects may receive slightly higher weighting than very old projects.
+
+====================================================
+EXAMPLE
+
+- Recent projects weight = 1.2
+- Older projects weight = 1.0
+
+====================================================
+BUSINESS VALUE
+
+This allows:
+
+- standards to evolve gradually
+- forecasting to remain current
+- historical learning to improve continuously
+
+====================================================
+OPTIONAL ADVANCED FEATURE
+
+Prepare architecture for future machine-learning forecasting.
+
+Future models may later use:
+
+- project type
+- region
+- contractor
+- execution style
+- BOQ composition
+
+to predict material demand more accurately.
+
+====================================================
+FINAL SYSTEM OBJECTIVE
+
+Transform the application from:
+
+- a BOQ-element analytics tool
+
+into:
+
+A professional historical material-demand intelligence and project forecasting platform capable of:
+
+- estimating total project material demand
+- learning from accumulated historical projects
+- continuously refining consumption coefficients
+- improving quantity allocation decisions
+- supporting strategic material planning
+- reducing chronic over-allocation
+- improving financial planning
+- creating institutional material-consumption intelligence.
