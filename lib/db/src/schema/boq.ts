@@ -6,6 +6,7 @@ import {
   integer,
   timestamp,
   unique,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -51,7 +52,6 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   nProjects: integer("n_projects").notNull().default(0),
   nOutliers: integer("n_outliers").notNull().default(0),
 
-  // ── Consumption Factor (cleared/requested) stats ───────────────
   meanCf: numeric("mean_cf", { precision: 18, scale: 6 }),
   medianCf: numeric("median_cf", { precision: 18, scale: 6 }),
   stdCf: numeric("std_cf", { precision: 18, scale: 6 }),
@@ -63,12 +63,10 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   maxCf: numeric("max_cf", { precision: 18, scale: 6 }),
   iqrCf: numeric("iqr_cf", { precision: 18, scale: 6 }),
 
-  // ── Over-allocation stats ──────────────────────────────────────
   avgOverAllocPct: numeric("avg_over_alloc_pct", { precision: 18, scale: 4 }),
   medianOverAllocPct: numeric("median_over_alloc_pct", { precision: 18, scale: 4 }),
   recommendedFactor: numeric("recommended_factor", { precision: 18, scale: 6 }),
 
-  // ── Cleared Quantity stats (raw, not ratio) ───────────────────
   meanClearedQty: numeric("mean_cleared_qty", { precision: 18, scale: 6 }),
   medianClearedQty: numeric("median_cleared_qty", { precision: 18, scale: 6 }),
   stdClearedQty: numeric("std_cleared_qty", { precision: 18, scale: 6 }),
@@ -78,38 +76,36 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   minClearedQty: numeric("min_cleared_qty", { precision: 18, scale: 6 }),
   maxClearedQty: numeric("max_cleared_qty", { precision: 18, scale: 6 }),
 
-  // ── Actual Unit Price stats (clearedAmount / clearedQty) ──────
   meanActualPrice: numeric("mean_actual_price", { precision: 18, scale: 4 }),
   medianActualPrice: numeric("median_actual_price", { precision: 18, scale: 4 }),
   stdActualPrice: numeric("std_actual_price", { precision: 18, scale: 4 }),
   p80ActualPrice: numeric("p80_actual_price", { precision: 18, scale: 4 }),
 
-  // ── Cleared Amount stats ──────────────────────────────────────
   medianClearedAmount: numeric("median_cleared_amount", { precision: 18, scale: 2 }),
   p80ClearedAmount: numeric("p80_cleared_amount", { precision: 18, scale: 2 }),
 
-  // ── Legacy avg fields (kept for compatibility) ────────────────
   avgAllocQty: numeric("avg_alloc_qty", { precision: 18, scale: 6 }),
   avgUsedQty: numeric("avg_used_qty", { precision: 18, scale: 6 }),
   medianUsedQty: numeric("median_used_qty", { precision: 18, scale: 6 }),
   avgClearedAmount: numeric("avg_cleared_amount", { precision: 18, scale: 2 }),
 
-  // ── Adaptive Recommended Standards (Layer 3) ──────────────────
   adaptiveQty: numeric("adaptive_qty", { precision: 18, scale: 6 }),
   adaptiveUnitPrice: numeric("adaptive_unit_price", { precision: 18, scale: 4 }),
   adaptiveAmount: numeric("adaptive_amount", { precision: 18, scale: 2 }),
   correctionRatio: numeric("correction_ratio", { precision: 18, scale: 6 }),
 
-  // ── Original Standard (Layer 1 — denormalized for quick access)
   origStdQty: numeric("orig_std_qty", { precision: 18, scale: 6 }),
   origStdPrice: numeric("orig_std_price", { precision: 18, scale: 4 }),
   origStdAmount: numeric("orig_std_amount", { precision: 18, scale: 2 }),
 
-  // ── Quality indicators ────────────────────────────────────────
   efficiencyRating: text("efficiency_rating"),
   stabilityScore: numeric("stability_score", { precision: 10, scale: 4 }),
   confidenceLevel: text("confidence_level"),
-  // Standard vs actual over-allocation: (origStdQty - medianNormClearedQty) / medianNormClearedQty * 100
+  confidenceScore: numeric("confidence_score", { precision: 10, scale: 4 }),
+  volatilityLevel: text("volatility_level"),
+  coefficientOfVariation: numeric("coefficient_of_variation", { precision: 10, scale: 4 }),
+  percentileSpread: numeric("percentile_spread", { precision: 10, scale: 4 }),
+
   stdOverAllocPct: numeric("std_over_alloc_pct", { precision: 18, scale: 4 }),
   computedAt: timestamp("computed_at").defaultNow().notNull(),
 }, (t) => [unique("analytics_item_element_key").on(t.boqItemName, t.elementName)]);
@@ -127,12 +123,64 @@ export const standardReferenceTable = pgTable("standard_reference", {
   standardPrice: numeric("standard_price", { precision: 18, scale: 2 }),
 });
 
+export const recommendationWorkflowTable = pgTable("recommendation_workflow", {
+  id: serial("id").primaryKey(),
+  boqItemName: text("boq_item_name").notNull(),
+  elementName: text("element_name").notNull(),
+  recommendedQty: numeric("recommended_qty", { precision: 18, scale: 6 }),
+  recommendedPrice: numeric("recommended_price", { precision: 18, scale: 4 }),
+  recommendedAmount: numeric("recommended_amount", { precision: 18, scale: 2 }),
+  previousQty: numeric("previous_qty", { precision: 18, scale: 6 }),
+  previousPrice: numeric("previous_price", { precision: 18, scale: 4 }),
+  previousAmount: numeric("previous_amount", { precision: 18, scale: 2 }),
+  overrideQty: numeric("override_qty", { precision: 18, scale: 6 }),
+  overridePrice: numeric("override_price", { precision: 18, scale: 4 }),
+  overrideAmount: numeric("override_amount", { precision: 18, scale: 2 }),
+  overrideJustification: text("override_justification"),
+  status: text("status").notNull().default("مسودة"),
+  nProjects: integer("n_projects").default(0),
+  confidenceScore: numeric("confidence_score", { precision: 10, scale: 4 }),
+  stabilityScore: numeric("stability_score", { precision: 10, scale: 4 }),
+  volatilityLevel: text("volatility_level"),
+  reviewerComment: text("reviewer_comment"),
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  rejectedBy: text("rejected_by"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  appliedAt: timestamp("applied_at"),
+  version: integer("version").notNull().default(1),
+  isLatest: boolean("is_latest").notNull().default(true),
+});
+
+export const standardVersionsTable = pgTable("standard_versions", {
+  id: serial("id").primaryKey(),
+  boqItemName: text("boq_item_name").notNull(),
+  elementName: text("element_name").notNull(),
+  version: integer("version").notNull(),
+  stdQty: numeric("std_qty", { precision: 18, scale: 6 }),
+  stdPrice: numeric("std_price", { precision: 18, scale: 4 }),
+  stdAmount: numeric("std_amount", { precision: 18, scale: 2 }),
+  changeReason: text("change_reason"),
+  changeType: text("change_type"),
+  historicalEvidence: text("historical_evidence"),
+  nProjectsAtChange: integer("n_projects_at_change"),
+  approvedBy: text("approved_by"),
+  effectiveDate: timestamp("effective_date").defaultNow().notNull(),
+  workflowId: integer("workflow_id").references(() => recommendationWorkflowTable.id),
+});
+
 export const insertImportBatchSchema = createInsertSchema(importBatchesTable).omit({ id: true, importedAt: true });
 export const insertHistoricalUsageSchema = createInsertSchema(historicalUsageTable).omit({ id: true, createdAt: true });
 export const insertAnalyticsResultSchema = createInsertSchema(analyticsResultsTable).omit({ id: true, computedAt: true });
 export const insertStandardReferenceSchema = createInsertSchema(standardReferenceTable).omit({ id: true });
+export const insertRecommendationWorkflowSchema = createInsertSchema(recommendationWorkflowTable).omit({ id: true, generatedAt: true });
+export const insertStandardVersionSchema = createInsertSchema(standardVersionsTable).omit({ id: true });
 
 export type ImportBatch = typeof importBatchesTable.$inferSelect;
 export type HistoricalUsage = typeof historicalUsageTable.$inferSelect;
 export type AnalyticsResult = typeof analyticsResultsTable.$inferSelect;
 export type StandardReference = typeof standardReferenceTable.$inferSelect;
+export type RecommendationWorkflow = typeof recommendationWorkflowTable.$inferSelect;
+export type StandardVersion = typeof standardVersionsTable.$inferSelect;

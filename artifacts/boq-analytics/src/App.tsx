@@ -8,6 +8,12 @@ import ItemPage from "@/pages/Item";
 import AdaptivePage from "@/pages/Adaptive";
 import OverAllocReportPage from "@/pages/OverAllocReport";
 import StandardPage from "@/pages/Standard";
+import ProjectContextPage from "@/pages/ProjectContext";
+import WorkflowPage from "@/pages/RecommendationsWorkflow";
+import StandardEvolutionPage from "@/pages/StandardEvolution";
+import DataGovernancePage from "@/pages/DataGovernance";
+import StabilityReportPage from "@/pages/StabilityReport";
+import VolatilityReportPage from "@/pages/VolatilityReport";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 
@@ -28,6 +34,12 @@ function Router() {
         <Route path="/adaptive" component={AdaptivePage} />
         <Route path="/overalloc" component={OverAllocReportPage} />
         <Route path="/standard" component={StandardPage} />
+        <Route path="/project-context" component={ProjectContextPage} />
+        <Route path="/workflow" component={WorkflowPage} />
+        <Route path="/standard-evolution" component={StandardEvolutionPage} />
+        <Route path="/data-governance" component={DataGovernancePage} />
+        <Route path="/stability-report" component={StabilityReportPage} />
+        <Route path="/volatility-report" component={VolatilityReportPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -20,11 +20,38 @@ export const api = {
   deleteBatch: (id: number) => req<{ success: boolean }>(`/api/boq/batches/${id}`, { method: "DELETE" }),
   seedStandard: () => req<{ success: boolean; inserted: number }>("/api/boq/seed-standard", { method: "POST" }),
   getStandard: () => req<StandardResponse>("/api/boq/standard"),
-  runAnalytics: () => req<{ success: boolean; analyzedGroups: number }>("/api/boq/run-analytics", { method: "POST" }),
+  runAnalytics: (body?: { projectType?: string; branch?: string }) =>
+    req<{ success: boolean; analyzedGroups: number }>("/api/boq/run-analytics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    }),
   getBoqItems: () => req<{ items: string[] }>("/api/boq/boq-items"),
   getItemAnalytics: (item: string) => req<ItemAnalyticsResponse>(`/api/boq/item-analytics?item=${encodeURIComponent(item)}`),
   getAllAnalytics: () => req<{ analytics: AnalyticsRow[] }>("/api/boq/analytics"),
   getAdaptiveStandards: () => req<{ standards: AnalyticsRow[] }>("/api/boq/adaptive-standards"),
+  // Module 1: Project Context
+  getProjectContext: (params?: { projectType?: string; branch?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.projectType) qs.set("projectType", params.projectType);
+    if (params?.branch) qs.set("branch", params.branch);
+    return req<ProjectContextResponse>(`/api/boq/project-context${qs.toString() ? `?${qs}` : ""}`);
+  },
+  // Module 5+6: Workflow
+  generateWorkflow: () => req<{ success: boolean; generated: number }>("/api/boq/workflow/generate", { method: "POST" }),
+  getWorkflow: (status?: string) => req<WorkflowResponse>(`/api/boq/workflow${status && status !== "الكل" ? `?status=${encodeURIComponent(status)}` : ""}`),
+  updateWorkflow: (id: number, body: WorkflowUpdateBody) =>
+    req<{ success: boolean }>(`/api/boq/workflow/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  // Module 7: Standard Versions
+  getStandardVersions: () => req<StandardVersionsResponse>("/api/boq/standard-versions"),
+  // Module 8: Reports
+  getStabilityReport: () => req<{ rows: AnalyticsRow[] }>("/api/boq/reports/stability"),
+  getVolatilityReport: () => req<{ rows: AnalyticsRow[] }>("/api/boq/reports/volatility"),
+  getEvolutionReport: () => req<EvolutionReportResponse>("/api/boq/reports/evolution"),
 };
 
 export interface DashboardResponse {
@@ -77,7 +104,6 @@ export interface AnalyticsRow {
   elementCode: string | null;
   nProjects: number;
   nOutliers: number;
-  // CF stats
   meanCf: string | null;
   medianCf: string | null;
   stdCf: string | null;
@@ -88,11 +114,9 @@ export interface AnalyticsRow {
   minCf: string | null;
   maxCf: string | null;
   iqrCf: string | null;
-  // Over-alloc
   avgOverAllocPct: string | null;
   medianOverAllocPct: string | null;
   recommendedFactor: string | null;
-  // Cleared qty stats (Layer 2b)
   meanClearedQty: string | null;
   medianClearedQty: string | null;
   stdClearedQty: string | null;
@@ -101,33 +125,30 @@ export interface AnalyticsRow {
   p90ClearedQty: string | null;
   minClearedQty: string | null;
   maxClearedQty: string | null;
-  // Actual price stats (Layer 2c)
   meanActualPrice: string | null;
   medianActualPrice: string | null;
   stdActualPrice: string | null;
   p80ActualPrice: string | null;
-  // Cleared amount stats (Layer 2d)
   medianClearedAmount: string | null;
   p80ClearedAmount: string | null;
-  // Legacy
   avgAllocQty: string | null;
   avgUsedQty: string | null;
   medianUsedQty: string | null;
   avgClearedAmount: string | null;
-  // Adaptive Layer 3
   adaptiveQty: string | null;
   adaptiveUnitPrice: string | null;
   adaptiveAmount: string | null;
   correctionRatio: string | null;
-  // Layer 1 — original standard (denormalized)
   origStdQty: string | null;
   origStdPrice: string | null;
   origStdAmount: string | null;
-  // Quality indicators
   efficiencyRating: string | null;
   stabilityScore: string | null;
   confidenceLevel: string | null;
-  // Standard vs actual over-allocation pct (positive = standard overestimates)
+  confidenceScore: string | null;
+  volatilityLevel: string | null;
+  coefficientOfVariation: string | null;
+  percentileSpread: string | null;
   stdOverAllocPct: string | null;
 }
 
@@ -151,4 +172,91 @@ export interface HistoricalRow {
 export interface ItemAnalyticsResponse {
   analytics: ItemAnalyticsRow[];
   historical: HistoricalRow[];
+}
+
+export interface ProjectContextResponse {
+  filters: {
+    projectTypes: string[];
+    branches: string[];
+    statuses: string[];
+  };
+  summary: Array<{
+    projectType: string;
+    projectCount: number;
+    recordCount: number;
+    elementCount: number;
+  }>;
+  totalRecords: number;
+}
+
+export interface WorkflowRec {
+  id: number;
+  boqItemName: string;
+  elementName: string;
+  recommendedQty: string | null;
+  recommendedPrice: string | null;
+  recommendedAmount: string | null;
+  previousQty: string | null;
+  previousPrice: string | null;
+  previousAmount: string | null;
+  overrideQty: string | null;
+  overridePrice: string | null;
+  overrideAmount: string | null;
+  overrideJustification: string | null;
+  status: string;
+  nProjects: number | null;
+  confidenceScore: string | null;
+  stabilityScore: string | null;
+  volatilityLevel: string | null;
+  reviewerComment: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  rejectedBy: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  generatedAt: string;
+  appliedAt: string | null;
+  version: number;
+  isLatest: boolean;
+}
+
+export interface WorkflowResponse {
+  recommendations: WorkflowRec[];
+}
+
+export interface WorkflowUpdateBody {
+  action: "approve" | "reject" | "review" | "apply" | "override";
+  comment?: string;
+  approvedBy?: string;
+  overrideQty?: string;
+  overridePrice?: string;
+  overrideAmount?: string;
+  overrideJustification?: string;
+  rejectionReason?: string;
+}
+
+export interface StandardVersion {
+  id: number;
+  boqItemName: string;
+  elementName: string;
+  version: number;
+  stdQty: string | null;
+  stdPrice: string | null;
+  stdAmount: string | null;
+  changeReason: string | null;
+  changeType: string | null;
+  historicalEvidence: string | null;
+  nProjectsAtChange: number | null;
+  approvedBy: string | null;
+  effectiveDate: string;
+  workflowId: number | null;
+}
+
+export interface StandardVersionsResponse {
+  versions: StandardVersion[];
+}
+
+export interface EvolutionReportResponse {
+  versions: StandardVersion[];
+  approvedWorkflow: WorkflowRec[];
 }

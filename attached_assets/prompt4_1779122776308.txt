@@ -1,0 +1,418 @@
+You are acting as a senior enterprise software architect, construction ERP analytics engineer, adaptive standards optimization engineer, statistical modeling specialist, and decision-support systems architect.
+
+Your task is to EVOLVE the EXISTING application from:
+
+- a historical analytics tool
+
+into:
+
+A professional adaptive construction standards intelligence and decision-support platform.
+
+IMPORTANT:
+
+- Preserve all existing functionality.
+- Preserve current architecture where possible.
+- Extend incrementally.
+- Maintain full Arabic RTL support.
+- Maintain mobile-first responsive behavior.
+- Do NOT rebuild the application from scratch.
+
+====================================================
+CRITICAL SYSTEM EVOLUTION
+
+The system must NO LONGER behave as:
+
+- a passive reporting dashboard
+
+The system must become:
+
+- a decision-support platform
+- a self-learning adaptive standards engine
+- a controlled recommendation system
+
+====================================================
+CURRENT PROBLEM
+
+Although the system now calculates:
+
+- normalized per-unit quantities
+- over-allocation
+- historical consumption
+
+the recommendations are still missing:
+
+- contextual intelligence
+- reliability evaluation
+- adaptive standard governance
+- recommendation confidence logic
+- standard evolution management
+
+====================================================
+NEW REQUIRED CAPABILITIES
+
+Implement the following advanced analytical and governance layers.
+
+====================================================
+MODULE 1 — PROJECT CONTEXT CLASSIFICATION
+
+The system currently assumes all projects are similar.
+
+This is incorrect.
+
+Historical consumption behavior may vary based on:
+
+- project type
+- execution environment
+- region
+- contractor behavior
+- project scale
+- execution conditions
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+Add project classification support.
+
+Possible classification dimensions:
+
+- نوع المشروع
+- المنطقة
+- الجهة
+- المقاول
+- حجم المشروع
+- نوع التنفيذ
+
+The analytics engine must support:
+
+- filtering analytics by project category
+- generating recommendations per category
+- comparing behavior between categories
+
+====================================================
+BUSINESS VALUE
+
+The system should eventually support:
+
+- different standards for different project contexts
+
+instead of:
+
+- one universal standard for all projects
+
+====================================================
+MODULE 2 — RECOMMENDATION CONFIDENCE SCORE
+
+Current recommendations may be statistically weak if:
+
+- based on few projects
+- based on unstable historical behavior
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+For EACH recommendation calculate:
+
+- number of historical projects
+- statistical stability
+- volatility level
+- recommendation confidence score
+
+====================================================
+EXAMPLE OUTPUT
+
+| العنصر | الكمية المقترحة | عدد المشاريع | معامل الثبات | درجة الثقة |
+
+====================================================
+CONFIDENCE SCORE PURPOSE
+
+The user must know:
+
+- whether a recommendation is highly reliable
+  or
+- statistically weak
+
+====================================================
+MODULE 3 — STABILITY INDEX ENGINE
+
+Some elements have:
+
+- highly stable historical behavior
+  while others:
+- fluctuate significantly
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+For each element calculate:
+
+---
+
+Stability Index
+
+Using:
+
+- coefficient of variation
+- percentile spread
+- standard deviation
+- normalized volatility
+
+====================================================
+IMPORTANT BUSINESS LOGIC
+
+Stable elements:
+
+- can use tighter recommendations
+
+Volatile elements:
+
+- require higher safety margins (P80/P90)
+
+====================================================
+MODULE 4 — ADAPTIVE STANDARD EVOLUTION TRACKING
+
+The system must NOT overwrite standards silently.
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+Track historical evolution of standards.
+
+Create tables such as:
+
+- standard_versions
+- recommendation_history
+- standard_change_log
+
+====================================================
+STORE
+
+For each standard update:
+
+- old standard
+- new recommended standard
+- reason for change
+- historical evidence
+- approval status
+- timestamp
+- approving user
+
+====================================================
+BUSINESS VALUE
+
+This creates:
+
+- auditability
+- governance
+- historical traceability
+- institutional learning
+
+====================================================
+MODULE 5 — APPROVAL WORKFLOW
+
+The system MUST NOT automatically replace standards.
+
+Recommendations must go through:
+
+- managerial review
+- approval workflow
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+Recommendation states:
+
+- Draft
+- Under Review
+- Approved
+- Rejected
+- Applied
+
+====================================================
+ALLOW
+
+Authorized users must:
+
+- approve recommendations
+- reject recommendations
+- modify recommendations manually
+- add comments/reasons
+
+====================================================
+MODULE 6 — HUMAN OVERRIDE LAYER
+
+The system must support expert engineering override.
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+Users must be able to:
+
+- override recommended quantities
+- override recommended prices
+- override recommended amounts
+
+WITH:
+
+- mandatory justification notes
+
+====================================================
+BUSINESS VALUE
+
+Historical data alone may not explain:
+
+- execution problems
+- abnormal conditions
+- special engineering requirements
+
+Human engineering judgment must remain supported.
+
+====================================================
+MODULE 7 — STANDARD VERSIONING SYSTEM
+
+Each approved standard change must create:
+
+- a new version
+
+====================================================
+REQUIRED IMPLEMENTATION
+
+The system must preserve:
+
+- old versions
+- effective dates
+- applied projects
+- historical recommendation lineage
+
+====================================================
+BUSINESS VALUE
+
+Allows:
+
+- rollback
+- historical audits
+- comparison between standard generations
+
+====================================================
+MODULE 8 — ADVANCED EXECUTIVE REPORTING
+
+Create professional executive analytical reports.
+
+====================================================
+REPORT 1
+
+Arabic Name:
+"تقرير العناصر ذات المبالغة التاريخية"
+
+Purpose:
+Detect elements whose:
+
+- standard quantities
+- requested quantities
+
+are historically higher than actual execution needs.
+
+====================================================
+REPORT CONTENT
+
+| البند | العنصر | المعيار الحالي | الوسيط الفعلي | P80 | نسبة المبالغة | التوصية الجديدة | درجة الثقة |
+
+====================================================
+REPORT 2
+
+Arabic Name:
+"تقرير العناصر الأعلى استقراراً"
+
+====================================================
+REPORT 3
+
+Arabic Name:
+"تقرير العناصر الأعلى تذبذباً"
+
+====================================================
+REPORT 4
+
+Arabic Name:
+"تقرير تطور المعايير"
+
+====================================================
+MODULE 9 — PREDICTIVE RECOMMENDATION FOUNDATION
+
+Prepare architecture for future predictive allocation modeling.
+
+The system should later support predicting:
+
+- expected quantities
+- expected costs
+- expected prices
+
+based on:
+
+- project characteristics
+- historical classifications
+- execution behavior
+
+====================================================
+IMPORTANT IMPLEMENTATION RULE
+
+DO NOT implement simplistic average-based logic.
+
+Primary recommendation logic must prioritize:
+
+- Median
+- P75
+- P80
+- Stability-adjusted recommendations
+
+====================================================
+IMPORTANT
+
+Mean values alone MUST NOT drive standards.
+
+====================================================
+MODULE 10 — DATA GOVERNANCE LAYER
+
+Create:
+
+- data dictionary
+- KPI definitions
+- formula registry
+- calculation documentation
+
+====================================================
+DOCUMENT
+
+- meaning of every column
+- formula source
+- analytical logic
+- recommendation methodology
+- statistical interpretation
+
+====================================================
+FINAL SYSTEM OBJECTIVE
+
+Transform the application into:
+
+A governed, auditable, self-learning, adaptive construction standards intelligence platform capable of:
+
+- continuously refining standards
+- generating statistically reliable recommendations
+- supporting executive decision making
+- preserving institutional knowledge
+- improving allocation accuracy over time
+
+====================================================
+IMPORTANT
+
+The system must balance:
+
+- historical analytics
+  WITH
+- human engineering governance
+
+The platform must support:
+
+- intelligence
+- transparency
+- explainability
+- auditability
+- decision readiness
