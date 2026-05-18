@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "4c2dH9ztvcAZBUO1wuiRa"
+uri = "file://شرح_التطبيق.txt"
+type = "text"
+title = "دليل شامل لمنصة تحليل بنود الأعمال الإنشائية"
