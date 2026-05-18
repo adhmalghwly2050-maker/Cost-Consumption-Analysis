@@ -9,6 +9,7 @@ import {
   standardReferenceTable,
   recommendationWorkflowTable,
   standardVersionsTable,
+  elementRolesTable,
 } from "@workspace/db";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { STANDARD_DATA } from "./boqStandardData.js";
@@ -498,6 +499,26 @@ router.post("/run-analytics", async (req: Request, res: Response) => {
       const percentileSpread = cfStats && cfStats.median > 0
         ? (p90Cf - p10Cf) / cfStats.median : null;
 
+      // ── MODULE 2-4: Execution Mode Detection ─────────────────────────────
+      const zeroCleared = rows.filter(r => (parseNum(r.clearedQty) ?? 0) === 0).length;
+      const pctZeroCleared = rows.length > 0 ? zeroCleared / rows.length : 0;
+      const avgCfVal = cfStats ? cfStats.mean : 0;
+      let executionMode = "غير محدد";
+      if (pctZeroCleared > 0.80) {
+        executionMode = "مالي فقط";        // Requested but almost never cleared → financial allocation
+      } else if (avgCfVal < 0.05) {
+        executionMode = "مشبوه";           // Extremely low clearance → suspicious data
+      } else if (avgCfVal > 0.75 && cvFinal < 0.25) {
+        executionMode = "تنفيذ مباشر";     // High clearance + low variance → direct execution
+      } else if (cvFinal > 0.70) {
+        executionMode = "مختلط";           // High variance → mixed execution modes
+      } else if (pctZeroCleared > 0.40) {
+        executionMode = "مقاول جزئي";      // Frequent zero clearance → contractor-style
+      } else {
+        executionMode = "تنفيذ جزئي";      // Moderate clearance → partial execution
+      }
+      const executionCompletenessScore = (1 - pctZeroCleared).toFixed(4);
+
       results.push({
         boqItemName,
         elementName,
@@ -550,6 +571,8 @@ router.post("/run-analytics", async (req: Request, res: Response) => {
         coefficientOfVariation:   cvFinal.toFixed(4),
         percentileSpread:         percentileSpread != null ? percentileSpread.toFixed(4) : null,
         stdOverAllocPct:      stdOverAllocPct != null ? stdOverAllocPct.toFixed(4) : null,
+        executionMode,
+        executionCompletenessScore,
       });
     }
 
@@ -610,6 +633,8 @@ router.post("/run-analytics", async (req: Request, res: Response) => {
               coefficientOfVariation:   sql`excluded.coefficient_of_variation`,
               percentileSpread:         sql`excluded.percentile_spread`,
               stdOverAllocPct:          sql`excluded.std_over_alloc_pct`,
+              executionMode:            sql`excluded.execution_mode`,
+              executionCompletenessScore: sql`excluded.execution_completeness_score`,
               computedAt:               sql`now()`,
             },
           });
@@ -869,6 +894,180 @@ router.get("/standard-versions", async (_req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
+});
+
+// ── MODULE 1: Element Role Classification ────────────────────────────────────
+router.get("/element-roles", async (_req: Request, res: Response) => {
+  try {
+    const roles = await db.select().from(elementRolesTable)
+      .orderBy(elementRolesTable.boqItemName, elementRolesTable.elementName);
+    res.json({ roles });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+router.get("/element-roles/boq-items", async (_req: Request, res: Response) => {
+  try {
+    const [fromAnalytics, fromRoles] = await Promise.all([
+      db.selectDistinct({ name: analyticsResultsTable.boqItemName }).from(analyticsResultsTable),
+      db.selectDistinct({ name: elementRolesTable.boqItemName }).from(elementRolesTable),
+    ]);
+    const names = Array.from(new Set([
+      ...fromAnalytics.map(r => r.name),
+      ...fromRoles.map(r => r.name),
+    ])).sort();
+    res.json({ items: names });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+router.post("/element-roles", async (req: Request, res: Response) => {
+  try {
+    const { boqItemName, elementName, roleType, description } = req.body as {
+      boqItemName: string; elementName: string; roleType: string; description?: string;
+    };
+    if (!boqItemName || !elementName || !roleType) {
+      res.status(400).json({ error: "boqItemName, elementName, roleType مطلوبة" }); return;
+    }
+    const [row] = await db.insert(elementRolesTable)
+      .values({ boqItemName, elementName, roleType, description: description || null })
+      .onConflictDoUpdate({
+        target: [elementRolesTable.boqItemName, elementRolesTable.elementName],
+        set: { roleType, description: description || null },
+      })
+      .returning();
+    res.json({ success: true, role: row });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+router.post("/element-roles/bulk", async (req: Request, res: Response) => {
+  try {
+    const { roles } = req.body as { roles: Array<{ boqItemName: string; elementName: string; roleType: string; description?: string }> };
+    if (!Array.isArray(roles) || roles.length === 0) {
+      res.status(400).json({ error: "يجب إرسال مصفوفة من الأدوار" }); return;
+    }
+    let saved = 0;
+    for (const r of roles) {
+      if (!r.boqItemName || !r.elementName || !r.roleType) continue;
+      await db.insert(elementRolesTable)
+        .values({ boqItemName: r.boqItemName, elementName: r.elementName, roleType: r.roleType, description: r.description || null })
+        .onConflictDoUpdate({
+          target: [elementRolesTable.boqItemName, elementRolesTable.elementName],
+          set: { roleType: r.roleType, description: r.description || null },
+        });
+      saved++;
+    }
+    res.json({ success: true, saved });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+router.delete("/element-roles/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(elementRolesTable).where(eq(elementRolesTable.id, id));
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+// ── MODULE 17: Evidence Viewer ────────────────────────────────────────────────
+router.get("/evidence", async (req: Request, res: Response) => {
+  try {
+    const { boqItemName, elementName } = req.query as { boqItemName: string; elementName: string };
+    if (!boqItemName || !elementName) {
+      res.status(400).json({ error: "boqItemName و elementName مطلوبان" }); return;
+    }
+    const rows = await db.select({
+      projectId: historicalUsageTable.projectId,
+      projectName: historicalUsageTable.projectName,
+      projectType: historicalUsageTable.projectType,
+      projectStatus: historicalUsageTable.projectStatus,
+      branch: historicalUsageTable.branch,
+      qty: historicalUsageTable.qty,
+      requestedQty: historicalUsageTable.requestedQty,
+      requestedAmount: historicalUsageTable.requestedAmount,
+      clearedQty: historicalUsageTable.clearedQty,
+      clearedAmount: historicalUsageTable.clearedAmount,
+    }).from(historicalUsageTable)
+      .where(and(
+        eq(historicalUsageTable.boqItemName, boqItemName),
+        eq(historicalUsageTable.elementName, elementName),
+      ))
+      .limit(200);
+
+    // Calculate clearance factor per row
+    const withCf = rows.map(r => {
+      const reqQty = parseNum(r.requestedQty) ?? 0;
+      const clrQty = parseNum(r.clearedQty) ?? 0;
+      const cf = reqQty > 0 ? clrQty / reqQty : null;
+      return { ...r, clearanceFactor: cf != null ? cf.toFixed(4) : null };
+    });
+
+    // Summary stats
+    const cfs = withCf.filter(r => r.clearanceFactor != null).map(r => parseFloat(r.clearanceFactor!));
+    const avgCf = cfs.length > 0 ? (cfs.reduce((a, b) => a + b, 0) / cfs.length).toFixed(4) : null;
+    const zeroCount = withCf.filter(r => (parseNum(r.clearedQty) ?? 0) === 0).length;
+
+    res.json({
+      rows: withCf,
+      summary: {
+        totalProjects: withCf.length,
+        avgClearanceFactor: avgCf,
+        zeroCleared: zeroCount,
+        pctZeroCleared: withCf.length > 0 ? ((zeroCount / withCf.length) * 100).toFixed(1) : "0",
+      }
+    });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+// ── MODULE 18: Report — Unexecuted / Zero-Clearance Items ────────────────────
+router.get("/reports/unexecuted", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select({
+      boqItemName: historicalUsageTable.boqItemName,
+      elementName: historicalUsageTable.elementName,
+      projectName: historicalUsageTable.projectName,
+      projectType: historicalUsageTable.projectType,
+      requestedQty: historicalUsageTable.requestedQty,
+      clearedQty: historicalUsageTable.clearedQty,
+      requestedAmount: historicalUsageTable.requestedAmount,
+    }).from(historicalUsageTable)
+      .where(sql`requested_qty IS NOT NULL AND requested_qty::numeric > 0`);
+
+    // Group by boqItemName + elementName, count zero-cleared vs total
+    const groups: Record<string, {
+      boqItemName: string; elementName: string;
+      total: number; zeroCleared: number;
+      avgRequestedQty: number; totalRequestedAmount: number;
+      projects: Set<string>;
+    }> = {};
+
+    for (const r of rows) {
+      if (!r.boqItemName || !r.elementName) continue;
+      const key = `${r.boqItemName}|||${r.elementName}`;
+      if (!groups[key]) {
+        groups[key] = { boqItemName: r.boqItemName, elementName: r.elementName, total: 0, zeroCleared: 0, avgRequestedQty: 0, totalRequestedAmount: 0, projects: new Set() };
+      }
+      groups[key].total++;
+      if ((parseNum(r.clearedQty) ?? 0) === 0) groups[key].zeroCleared++;
+      groups[key].avgRequestedQty += parseNum(r.requestedQty) ?? 0;
+      groups[key].totalRequestedAmount += parseNum(r.requestedAmount) ?? 0;
+      if (r.projectName) groups[key].projects.add(r.projectName);
+    }
+
+    const unexecuted = Object.values(groups)
+      .filter(g => g.total > 0 && g.zeroCleared / g.total > 0.60)
+      .map(g => ({
+        boqItemName: g.boqItemName,
+        elementName: g.elementName,
+        totalRecords: g.total,
+        zeroCleared: g.zeroCleared,
+        pctUnexecuted: ((g.zeroCleared / g.total) * 100).toFixed(1),
+        avgRequestedQty: g.total > 0 ? (g.avgRequestedQty / g.total).toFixed(4) : null,
+        totalRequestedAmount: g.totalRequestedAmount.toFixed(2),
+        projectCount: g.projects.size,
+      }))
+      .sort((a, b) => parseFloat(b.pctUnexecuted) - parseFloat(a.pctUnexecuted));
+
+    res.json({ rows: unexecuted, totalUnexecuted: unexecuted.length });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
 });
 
 // ── MODULE 8: Advanced Reports ────────────────────────────────────────────────

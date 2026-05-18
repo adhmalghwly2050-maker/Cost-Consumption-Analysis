@@ -62,6 +62,22 @@ export const api = {
   matReportTopDemand: () => req<MatTopDemandResponse>("/api/materials/reports/top-demand"),
   matReportVolatility: () => req<{ coefficients: MatCoeffRow[] }>("/api/materials/reports/volatility"),
   matReportComparison: () => req<{ rows: MatCoeffRow[] }>("/api/materials/reports/comparison"),
+
+  // ── MODULE 1: Element Role Classification ────────────────────────────────
+  getElementRoles: () => req<{ roles: ElementRole[] }>("/api/boq/element-roles"),
+  saveElementRole: (body: { boqItemName: string; elementName: string; roleType: string; description?: string }) =>
+    jsonPost<{ success: boolean; role: ElementRole }>("/api/boq/element-roles", body),
+  bulkSaveElementRoles: (roles: Array<{ boqItemName: string; elementName: string; roleType: string; description?: string }>) =>
+    jsonPost<{ success: boolean; saved: number }>("/api/boq/element-roles/bulk", { roles }),
+  deleteElementRole: (id: number) =>
+    req<{ success: boolean }>(`/api/boq/element-roles/${id}`, { method: "DELETE" }),
+
+  // ── MODULE 17: Evidence Viewer ───────────────────────────────────────────
+  getEvidence: (boqItemName: string, elementName: string) =>
+    req<EvidenceResponse>(`/api/boq/evidence?boqItemName=${encodeURIComponent(boqItemName)}&elementName=${encodeURIComponent(elementName)}`),
+
+  // ── MODULE 18: Unexecuted Report ─────────────────────────────────────────
+  getUnexecutedReport: () => req<UnexecutedReportResponse>("/api/boq/reports/unexecuted"),
 };
 
 // ── BOQ TYPES ────────────────────────────────────────────────────────────────
@@ -88,6 +104,7 @@ export interface AnalyticsRow {
   efficiencyRating: string | null; stabilityScore: string | null; confidenceLevel: string | null;
   confidenceScore: string | null; volatilityLevel: string | null; coefficientOfVariation: string | null; percentileSpread: string | null;
   stdOverAllocPct: string | null;
+  executionMode: string | null; executionCompletenessScore: string | null;
 }
 export interface ItemAnalyticsRow extends AnalyticsRow { standardQty: number | null; standardPrice: number | null; elementUnit: string | null; recommendedQty: number | null; recommendedAmount: number | null }
 export interface HistoricalRow { projectName: string | null; elementName: string | null; requestedQty: string | null; clearedQty: string | null; requestedAmount: string | null; clearedAmount: string | null }
@@ -99,6 +116,33 @@ export interface WorkflowUpdateBody { action: "approve" | "reject" | "review" | 
 export interface StandardVersion { id: number; boqItemName: string; elementName: string; version: number; stdQty: string | null; stdPrice: string | null; stdAmount: string | null; changeReason: string | null; changeType: string | null; historicalEvidence: string | null; nProjectsAtChange: number | null; approvedBy: string | null; effectiveDate: string; workflowId: number | null }
 export interface StandardVersionsResponse { versions: StandardVersion[] }
 export interface EvolutionReportResponse { versions: StandardVersion[]; approvedWorkflow: WorkflowRec[] }
+
+// ── MODULE 1: Element Role Types ─────────────────────────────────────────────
+export interface ElementRole {
+  id: number; boqItemName: string; elementName: string; roleType: string;
+  isDefault: boolean | null; description: string | null; createdAt: string;
+}
+
+// ── MODULE 17: Evidence Types ─────────────────────────────────────────────────
+export interface EvidenceRow {
+  projectId: string | null; projectName: string | null; projectType: string | null;
+  projectStatus: string | null; branch: string | null; qty: string | null;
+  requestedQty: string | null; requestedAmount: string | null;
+  clearedQty: string | null; clearedAmount: string | null;
+  clearanceFactor: string | null;
+}
+export interface EvidenceSummary {
+  totalProjects: number; avgClearanceFactor: string | null;
+  zeroCleared: number; pctZeroCleared: string;
+}
+export interface EvidenceResponse { rows: EvidenceRow[]; summary: EvidenceSummary }
+
+// ── MODULE 18: Unexecuted Report Types ───────────────────────────────────────
+export interface UnexecutedRow {
+  boqItemName: string; elementName: string; totalRecords: number; zeroCleared: number;
+  pctUnexecuted: string; avgRequestedQty: string | null; totalRequestedAmount: string; projectCount: number;
+}
+export interface UnexecutedReportResponse { rows: UnexecutedRow[]; totalUnexecuted: number }
 
 // ── MATERIAL TYPES ────────────────────────────────────────────────────────────
 

@@ -19,6 +19,8 @@ import MaterialDictionaryPage from "@/pages/MaterialDictionary";
 import MaterialForecastPage from "@/pages/MaterialForecast";
 import MaterialHistoricalPage from "@/pages/MaterialHistorical";
 import MaterialReportsPage from "@/pages/MaterialReports";
+import ElementRolesPage from "@/pages/ElementRoles";
+import UnexecutedReportPage from "@/pages/UnexecutedReport";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 
@@ -50,6 +52,8 @@ function Router() {
         <Route path="/material-forecast" component={MaterialForecastPage} />
         <Route path="/material-historical" component={MaterialHistoricalPage} />
         <Route path="/material-reports" component={MaterialReportsPage} />
+        <Route path="/element-roles" component={ElementRolesPage} />
+        <Route path="/unexecuted-report" component={UnexecutedReportPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

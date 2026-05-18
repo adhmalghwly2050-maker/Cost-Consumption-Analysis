@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   BarChart3, Upload, Search, BookOpen, Home, Menu, X, TrendingUp,
   Database, Zap, TrendingDown, GitBranch, Shield, Layers, FlaskConical,
-  Activity, ScrollText, Brain
+  Activity, ScrollText, Brain, Tag, FileX2
 } from "lucide-react";
 
 const navGroups = [
@@ -37,7 +37,14 @@ const navGroups = [
       { path: "/overalloc", label: "تقرير المبالغة التاريخية", icon: TrendingDown },
       { path: "/stability-report", label: "تقرير الاستقرار", icon: FlaskConical },
       { path: "/volatility-report", label: "تقرير التذبذب", icon: ScrollText },
+      { path: "/unexecuted-report", label: "البنود غير المنفذة", icon: FileX2 },
       { path: "/standard", label: "المرجع المعياري", icon: BookOpen },
+    ],
+  },
+  {
+    label: "إعدادات الذكاء التنفيذي",
+    items: [
+      { path: "/element-roles", label: "تصنيف أدوار العناصر", icon: Tag },
     ],
   },
   {

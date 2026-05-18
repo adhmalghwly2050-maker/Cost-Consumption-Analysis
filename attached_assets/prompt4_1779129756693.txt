@@ -1,0 +1,770 @@
+You are acting as a senior enterprise software architect, construction ERP intelligence engineer, adaptive standards architect, material-demand forecasting engineer, execution analytics specialist, quantity-surveying systems architect, statistical modeling engineer, and executive decision-support systems designer.
+
+Your task is to EVOLVE and UPGRADE the EXISTING application into:
+
+A professional execution-aware adaptive construction intelligence platform.
+
+IMPORTANT:
+
+- Preserve all current functionality.
+- Extend incrementally.
+- Maintain existing architecture where possible.
+- Maintain Arabic-first RTL support.
+- Maintain mobile responsiveness.
+- Do NOT rebuild the system from scratch.
+
+====================================================
+CORE SYSTEM EVOLUTION
+
+The application must NO LONGER behave as:
+
+- a passive reporting dashboard
+- a simple statistical analyzer
+- a basic historical analytics tool
+
+The application must become:
+
+- an execution-aware intelligence platform
+- a governed adaptive standards engine
+- a historical material-consumption intelligence system
+- an executive decision-support platform
+
+====================================================
+IMPORTANT BUSINESS PRINCIPLE
+
+The platform MUST NOT assume:
+
+- that all current standards are incorrect.
+
+Current standard quantities are considered:
+
+- generally valid by default.
+
+The platform objective is NOT:
+
+- rebuilding all standards from scratch.
+
+Instead:
+the platform should focus on:
+
+---
+
+Deviation Intelligence
+
+Meaning:
+Detect:
+
+- chronic over-allocation
+- historically inflated quantities
+- suspicious deviations
+- abnormal consumption behavior
+- statistically abnormal standards
+
+====================================================
+IMPORTANT
+
+Most standards are expected to remain valid.
+
+The system should identify:
+
+- exceptional deviations
+  NOT:
+- aggressively modify all standards automatically.
+
+====================================================
+CURRENT ANALYTICAL PROBLEM
+
+The system currently assumes:
+
+Requested BOQ Quantity =
+Actually Executed Quantity
+
+This is NOT always true.
+
+====================================================
+REAL BUSINESS CASES
+
+Some branches:
+
+- request additional BOQ quantities
+  BUT:
+- do NOT actually execute them.
+
+Sometimes:
+
+- only labor
+- only financial items
+- only contractor fees
+
+are cleared.
+
+====================================================
+ALSO IMPORTANT
+
+Some BOQ items are executed by:
+
+- contractors
+- subcontractors
+- lump-sum execution
+
+In these cases:
+the branch may NOT clear:
+
+- cement
+- steel
+- blocks
+- paint
+
+Instead it may clear ONLY:
+
+- contractor fees
+- lump-sum execution items
+- مقطوعية
+- مقاولون
+- عقد تنفيذ
+
+====================================================
+CRITICAL ARCHITECTURAL CHANGE
+
+DO NOT rely entirely on automatic execution inference.
+
+The application MUST support:
+
+---
+
+Manual Core Element Configuration
+
+====================================================
+CORE BUSINESS LOGIC
+
+For EACH BOQ item,
+authorized users must manually define:
+
+1. Primary Core Elements
+2. Secondary Validation Elements
+3. Contractor Indicators
+4. Supporting Elements
+5. Financial Elements
+6. Auxiliary Elements
+
+====================================================
+IMPORTANT
+
+Primary Core Elements represent:
+
+Mandatory execution indicators that prove the BOQ quantity was ACTUALLY executed.
+
+====================================================
+EXAMPLES
+
+Concrete Works:
+
+- Cement = Primary Core
+- Steel = Primary Core
+- Sand = Secondary Validation
+- Gravel = Secondary Validation
+- Labor = Financial
+
+---
+
+Plaster Works:
+
+- Cement = Primary Core
+
+---
+
+Painting:
+
+- Paint = Primary Core
+
+---
+
+Block Work:
+
+- Block/Stone = Primary Core
+
+---
+
+Tile Work:
+
+- Tiles = Primary Core
+
+---
+
+Contractor Execution:
+
+- مقطوعية = Contractor Indicator
+- مقاولون = Contractor Indicator
+- عقد تنفيذ = Contractor Indicator
+
+====================================================
+IMPORTANT GOVERNANCE RULE
+
+The following MUST NOT independently prove execution completeness unless explicitly configured by users:
+
+- water
+- sand
+- gravel
+- transportation
+- labor
+- financial-only items
+- auxiliary items
+
+====================================================
+MODULE 1 — ELEMENT ROLE CLASSIFICATION SYSTEM
+
+Create professional classification support for all elements.
+
+====================================================
+REQUIRED ELEMENT TYPES
+
+- Primary Core
+- Secondary Validation
+- Contractor Indicator
+- Supporting
+- Financial
+- Auxiliary
+
+====================================================
+REQUIRED USER INTERFACE
+
+Create administrative interfaces allowing users to configure for EACH BOQ item:
+
+| العنصر | نوع العنصر | أساسي | ثانوي | مؤشر تنفيذ مقاول |
+
+====================================================
+IMPORTANT
+
+Configuration must be:
+
+- editable
+- persistent
+- reusable
+- versioned
+- database-driven
+
+====================================================
+MODULE 2 — EXECUTION MODE DETECTION ENGINE
+
+Create an intelligent execution-analysis engine.
+
+====================================================
+SUPPORTED EXECUTION MODES
+
+- Direct Execution
+- Contractor Execution
+- Partial Execution
+- Financial-Only Clearance
+- Mixed Execution
+- Suspicious / Non-Executed
+
+====================================================
+EXECUTION VALIDATION RULES
+
+IF:
+Primary Core Elements were:
+
+- requested
+  AND
+- cleared
+
+THEN:
+the BOQ quantity may be considered:
+"Actually Executed"
+
+---
+
+IF:
+Primary Core Elements are absent
+BUT:
+Contractor Indicators exist
+
+THEN:
+classify execution as:
+"Contractor Executed"
+
+---
+
+IF:
+only labor/financial items exist
+WITHOUT:
+Primary Core Elements
+
+THEN:
+classify as:
+"Financial-Only Clearance"
+
+====================================================
+IMPORTANT
+
+Execution completeness MUST support:
+
+- multiple primary core elements.
+
+Some BOQ items MUST NOT rely on a single execution indicator only.
+
+====================================================
+MODULE 3 — EXECUTION COMPLETENESS ENGINE
+
+The system must determine:
+
+- fully executed quantities
+- partially executed quantities
+- contractor-executed quantities
+- financially-cleared-only quantities
+- suspicious/non-executed quantities
+
+====================================================
+IMPORTANT
+
+Execution status MUST NOT be binary only.
+
+The engine must support:
+
+- gradual execution completeness estimation.
+
+====================================================
+MODULE 4 — NORMALIZED HISTORICAL CONSUMPTION ENGINE
+
+For EACH:
+
+| BOQ Item + Element |
+
+calculate:
+
+---
+
+Historical Consumption Per Unit
+
+====================================================
+IMPORTANT CALCULATION RULE
+
+Consumption normalization MUST use:
+
+Estimated Actually Executed Quantity
+
+NOT:
+Requested BOQ Quantity directly.
+
+====================================================
+IMPORTANT
+
+The engine MUST use:
+
+- historical execution evidence
+- core-element validation
+- contractor execution logic
+
+====================================================
+MODULE 5 — MATERIAL CONSUMPTION INTELLIGENCE ENGINE
+
+Create a project-level material-demand intelligence system.
+
+====================================================
+OBJECTIVE
+
+Estimate:
+
+TOTAL PROJECT MATERIAL DEMAND
+
+using:
+
+- historical execution behavior
+- normalized consumption coefficients
+- adaptive standards
+- project BOQ quantities
+
+====================================================
+MODULE 6 — UNIFIED MATERIAL DICTIONARY
+
+Create centralized material master databases.
+
+====================================================
+PURPOSE
+
+Unify duplicated material naming.
+
+====================================================
+EXAMPLES
+
+The following should map into ONE material entity:
+
+- اسمنت
+- إسمنت
+- cement
+
+====================================================
+CREATE TABLES
+
+- material_master
+- material_aliases
+- material_categories
+
+====================================================
+MODULE 7 — CONSUMPTION COEFFICIENT ENGINE
+
+For EACH:
+
+| BOQ Item + Material |
+
+calculate:
+
+---
+
+Normalized Historical Consumption Coefficient
+
+Meaning:
+
+Historical Material Consumption
+Per ONE Executed Unit of BOQ Item.
+
+====================================================
+IMPORTANT
+
+Coefficients must be derived from:
+
+- actual historical cleared quantities
+- actual execution evidence
+
+NOT:
+pure theoretical assumptions only.
+
+====================================================
+MODULE 8 — PROJECT MATERIAL AGGREGATION ENGINE
+
+Aggregate material demand across ALL BOQ items inside projects.
+
+====================================================
+EXAMPLE
+
+If project contains:
+
+BOQ Item| Quantity
+Handhole| 50
+Foundation| 20
+
+The engine should estimate:
+
+Material| Total Expected Demand
+Cement| XXX
+Sand| XXX
+
+====================================================
+IMPORTANT
+
+Aggregation must use:
+
+- normalized coefficients
+- historical execution behavior
+- adaptive standards
+- confidence scoring
+- stability analysis
+
+====================================================
+MODULE 9 — HISTORICAL MATERIAL INTELLIGENCE
+
+For EACH MATERIAL calculate:
+
+- total historical usage
+- historical demand trends
+- historical median demand
+- P75 demand
+- P80 demand
+- volatility
+- stability
+- confidence score
+
+====================================================
+MODULE 10 — STABILITY INDEX ENGINE
+
+Calculate:
+
+---
+
+Stability Index
+
+Using:
+
+- coefficient of variation
+- percentile spread
+- normalized volatility
+- standard deviation
+
+====================================================
+IMPORTANT
+
+Stable elements:
+
+- can use tighter recommendations
+
+Volatile elements:
+
+- require wider safe ranges
+
+====================================================
+MODULE 11 — RECOMMENDATION CONFIDENCE ENGINE
+
+For EACH recommendation calculate:
+
+- confidence score
+- number of historical projects
+- statistical stability
+- volatility level
+
+====================================================
+MODULE 12 — RECOMMENDATION RANGE ENGINE
+
+DO NOT provide:
+
+- one rigid fixed quantity.
+
+Provide:
+
+| الحد الأدنى | الموصى | الحد الآمن |
+
+Using:
+
+- Median
+- P75
+- P80
+
+====================================================
+MODULE 13 — DEVIATION INTELLIGENCE SYSTEM
+
+The system should focus on:
+
+- identifying abnormal deviations
+- detecting chronic over-allocation
+- detecting inflated standards
+
+NOT:
+blindly rebuilding all standards.
+
+====================================================
+MODULE 14 — STANDARD EVOLUTION TRACKING
+
+Track historical evolution of standards.
+
+====================================================
+CREATE TABLES
+
+- standard_versions
+- recommendation_history
+- standard_change_log
+
+====================================================
+STORE
+
+- old standard
+- recommended standard
+- reason for change
+- evidence
+- confidence score
+- approval status
+- timestamp
+- approving user
+
+====================================================
+MODULE 15 — APPROVAL WORKFLOW
+
+Recommendations MUST NOT automatically replace standards.
+
+====================================================
+REQUIRED STATES
+
+- Draft
+- Under Review
+- Approved
+- Rejected
+- Applied
+
+====================================================
+ALLOW
+
+Authorized users must:
+
+- approve recommendations
+- reject recommendations
+- modify recommendations
+- add justification notes
+
+====================================================
+MODULE 16 — HUMAN OVERRIDE SUPPORT
+
+Allow engineering overrides.
+
+Users must be able to:
+
+- override quantities
+- override prices
+- override recommendations
+
+WITH:
+
+- mandatory justification.
+
+====================================================
+MODULE 17 — EVIDENCE VIEWER
+
+Every recommendation must support:
+
+- evidence inspection
+- historical traceability
+- project visibility
+- calculation visibility
+
+Users must be able to inspect:
+
+- which projects
+- which quantities
+- which execution records
+
+generated the recommendation.
+
+====================================================
+MODULE 18 — EXECUTIVE REPORTING ENGINE
+
+Current reports are NOT sufficient.
+
+Reports must become:
+
+- printable
+- formal
+- management-ready
+- recommendation-oriented
+- officially presentable
+
+====================================================
+REQUIRED REPORTS
+
+REPORT 1:
+"تقرير العناصر ذات المبالغة التاريخية"
+
+====================================================
+
+REPORT 2:
+"تقرير البنود المطلوبة وغير المنفذة فعلياً"
+
+====================================================
+
+REPORT 3:
+"تقرير العناصر الأعلى استقراراً"
+
+====================================================
+
+REPORT 4:
+"تقرير العناصر الأعلى تذبذباً"
+
+====================================================
+
+REPORT 5:
+"تقرير الاحتياج الكلي المتوقع للمشروع"
+
+====================================================
+REPORT REQUIREMENTS
+
+Reports must contain:
+
+- executive summary
+- statistical evidence
+- confidence scores
+- recommendation ranges
+- execution reasoning
+- formal recommendation text
+
+====================================================
+EXAMPLE EXECUTIVE RECOMMENDATION
+
+"تشير البيانات التاريخية إلى أن متوسط الإخلاء الفعلي لعنصر الإسمنت في بند اللياسة أقل من الكمية المعيارية الحالية بنسبة 18%، مع ثبات تاريخي مرتفع ودرجة ثقة 92%، لذلك يوصى بتخفيض كمية التعزيز المستقبلية تدريجياً ضمن نطاق P80 التاريخي."
+
+====================================================
+MODULE 19 — PRINTABLE REPORTING SYSTEM
+
+Create professional printable reports supporting:
+
+- PDF export
+- official formatting
+- Arabic RTL printing
+- tables
+- executive signatures
+- organization branding
+
+====================================================
+MODULE 20 — STANDARD REFERENCE VISUALIZATION FIX
+
+CRITICAL BUG DETECTED:
+
+Standard-reference data is imported successfully,
+BUT:
+it is NOT displayed correctly inside the Smart Construction Standards Platform.
+
+====================================================
+REQUIRED FIX
+
+Fix:
+
+- frontend binding
+- state management
+- database retrieval
+- rendering pipeline
+- table population
+- filtering
+- searching
+
+====================================================
+REQUIRED BEHAVIOR
+
+After clicking:
+"تحميل المرجع المعياري"
+
+The system must properly display:
+
+| البند | العنصر | الكمية المعيارية | السعر المعياري | المبلغ المعياري |
+
+====================================================
+IMPORTANT
+
+Standard-reference data must become:
+
+- visible
+- searchable
+- filterable
+- analyzable
+- connected to recommendations
+
+====================================================
+MODULE 21 — DATA GOVERNANCE LAYER
+
+Create:
+
+- KPI definitions
+- formula registry
+- data dictionary
+- calculation documentation
+
+====================================================
+DOCUMENT
+
+- meaning of every field
+- formula logic
+- recommendation methodology
+- statistical interpretation
+
+====================================================
+FINAL OBJECTIVE
+
+Transform the application into:
+
+A professional execution-aware adaptive construction intelligence platform capable of:
+
+- understanding real execution behavior
+- distinguishing contractor execution from direct execution
+- detecting actual execution completeness
+- learning from historical project behavior
+- generating statistically reliable recommendations
+- forecasting total project material demand
+- detecting chronic over-allocation
+- supporting executive decision making
+- preserving institutional knowledge
+- producing printable executive reports
+- continuously improving adaptive standards over time.

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type AnalyticsRow } from "@/lib/api";
-import { ScrollText, RefreshCw, AlertTriangle, Activity } from "lucide-react";
+import { ScrollText, RefreshCw, AlertTriangle, Activity, Printer } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
 const n = (v: string | number | null | undefined, d = 3) =>
@@ -72,14 +72,27 @@ export default function VolatilityReportPage() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ScrollText className="w-6 h-6 text-orange-400" />
-          تقرير العناصر الأعلى تذبذباً
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          العناصر ذات السلوك غير المنتظم — تتطلب هامش أمان أعلى (P80/P90) ومراجعة هندسية متعمقة
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap print:hidden">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ScrollText className="w-6 h-6 text-orange-400" />
+            تقرير العناصر الأعلى تذبذباً
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            العناصر ذات السلوك غير المنتظم — تتطلب هامش أمان أعلى (P80/P90) ومراجعة هندسية متعمقة
+          </p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex-shrink-0"
+        >
+          <Printer className="w-4 h-4" />
+          طباعة التقرير
+        </button>
+      </div>
+      <div className="hidden print:block mb-6 border-b-2 border-gray-800 pb-4">
+        <h1 className="text-2xl font-bold text-center text-gray-900">تقرير العناصر الأعلى تذبذباً</h1>
+        <p className="text-center text-gray-600 text-sm mt-1">منصة الذكاء الإنشائي التكيفي — {new Date().toLocaleDateString("ar-SA")}</p>
       </div>
 
       {/* Level KPIs */}

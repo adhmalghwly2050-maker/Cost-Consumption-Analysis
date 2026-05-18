@@ -107,6 +107,9 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   percentileSpread: numeric("percentile_spread", { precision: 10, scale: 4 }),
 
   stdOverAllocPct: numeric("std_over_alloc_pct", { precision: 18, scale: 4 }),
+  // MODULE 2: Execution Mode Detection
+  executionMode: text("execution_mode"),
+  executionCompletenessScore: numeric("execution_completeness_score", { precision: 10, scale: 4 }),
   computedAt: timestamp("computed_at").defaultNow().notNull(),
 }, (t) => [unique("analytics_item_element_key").on(t.boqItemName, t.elementName)]);
 
@@ -171,12 +174,25 @@ export const standardVersionsTable = pgTable("standard_versions", {
   workflowId: integer("workflow_id").references(() => recommendationWorkflowTable.id),
 });
 
+// ── MODULE 1: Element Role Classification ─────────────────────────────────────
+export const elementRolesTable = pgTable("element_roles", {
+  id: serial("id").primaryKey(),
+  boqItemName: text("boq_item_name").notNull(),
+  elementName: text("element_name").notNull(),
+  // primary_core | secondary_validation | contractor_indicator | supporting | financial | auxiliary
+  roleType: text("role_type").notNull().default("supporting"),
+  isDefault: boolean("is_default").default(false),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [unique("element_role_key").on(t.boqItemName, t.elementName)]);
+
 export const insertImportBatchSchema = createInsertSchema(importBatchesTable).omit({ id: true, importedAt: true });
 export const insertHistoricalUsageSchema = createInsertSchema(historicalUsageTable).omit({ id: true, createdAt: true });
 export const insertAnalyticsResultSchema = createInsertSchema(analyticsResultsTable).omit({ id: true, computedAt: true });
 export const insertStandardReferenceSchema = createInsertSchema(standardReferenceTable).omit({ id: true });
 export const insertRecommendationWorkflowSchema = createInsertSchema(recommendationWorkflowTable).omit({ id: true, generatedAt: true });
 export const insertStandardVersionSchema = createInsertSchema(standardVersionsTable).omit({ id: true });
+export const insertElementRoleSchema = createInsertSchema(elementRolesTable).omit({ id: true, createdAt: true });
 
 export type ImportBatch = typeof importBatchesTable.$inferSelect;
 export type HistoricalUsage = typeof historicalUsageTable.$inferSelect;
@@ -184,3 +200,4 @@ export type AnalyticsResult = typeof analyticsResultsTable.$inferSelect;
 export type StandardReference = typeof standardReferenceTable.$inferSelect;
 export type RecommendationWorkflow = typeof recommendationWorkflowTable.$inferSelect;
 export type StandardVersion = typeof standardVersionsTable.$inferSelect;
+export type ElementRole = typeof elementRolesTable.$inferSelect;

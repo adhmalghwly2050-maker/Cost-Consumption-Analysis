@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, Legend, ReferenceLine,
 } from "recharts";
-import { RefreshCw, AlertTriangle, FileBarChart2, TrendingDown, Info } from "lucide-react";
+import { RefreshCw, AlertTriangle, FileBarChart2, TrendingDown, Info, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 const n = (v: string | number | null | undefined, d = 3) =>

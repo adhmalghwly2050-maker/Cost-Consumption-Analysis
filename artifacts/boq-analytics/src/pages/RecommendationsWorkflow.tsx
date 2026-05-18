@@ -3,9 +3,97 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type WorkflowRec } from "@/lib/api";
 import {
   GitBranch, RefreshCw, CheckCircle, XCircle, Clock, Zap,
-  AlertTriangle, Eye, Edit, Send, ChevronDown, ChevronUp, Info
+  AlertTriangle, Eye, Edit, Send, ChevronDown, ChevronUp, Info,
+  BookOpen, TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
+
+// ── MODULE 17: Evidence Viewer Component ─────────────────────────────────────
+function EvidencePanel({ boqItemName, elementName }: { boqItemName: string; elementName: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["evidence", boqItemName, elementName],
+    queryFn: () => api.getEvidence(boqItemName, elementName),
+  });
+
+  const rows = data?.rows ?? [];
+  const summary = data?.summary;
+
+  const fmtN = (v: string | null | undefined) =>
+    v == null ? "—" : parseFloat(v).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+  const cfColor = (cf: string | null) => {
+    if (!cf) return "text-muted-foreground";
+    const v = parseFloat(cf);
+    if (v >= 0.8) return "text-green-400";
+    if (v >= 0.4) return "text-yellow-400";
+    return "text-red-400";
+  };
+
+  if (isLoading) return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+      <RefreshCw className="w-3 h-3 animate-spin" /> جاري تحميل الأدلة التاريخية...
+    </div>
+  );
+
+  if (rows.length === 0) return (
+    <div className="text-xs text-muted-foreground py-2">لا توجد بيانات تاريخية لهذا العنصر</div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Summary banner */}
+      {summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {[
+            { label: "إجمالي المشاريع", value: String(summary.totalProjects), color: "text-primary" },
+            { label: "متوسط نسبة الإخلاء", value: summary.avgClearanceFactor ? `${(parseFloat(summary.avgClearanceFactor) * 100).toFixed(1)}%` : "—", color: "text-green-400" },
+            { label: "مشاريع بإخلاء صفري", value: String(summary.zeroCleared), color: "text-red-400" },
+            { label: "نسبة عدم التنفيذ", value: `${summary.pctZeroCleared}%`, color: parseFloat(summary.pctZeroCleared) > 50 ? "text-orange-400" : "text-blue-400" },
+          ].map(k => (
+            <div key={k.label} className="bg-card border border-card-border rounded p-2 text-center">
+              <div className="text-xs text-muted-foreground">{k.label}</div>
+              <div className={`font-bold text-sm ${k.color}`}>{k.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Projects table */}
+      <div className="overflow-x-auto rounded-lg border border-card-border">
+        <table className="w-full text-xs min-w-[640px]">
+          <thead>
+            <tr className="bg-secondary/40">
+              <th className="px-3 py-2 text-right font-semibold text-muted-foreground">المشروع</th>
+              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">النوع</th>
+              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">الفرع</th>
+              <th className="px-3 py-2 text-center font-semibold text-yellow-400">الكمية المطلوبة</th>
+              <th className="px-3 py-2 text-center font-semibold text-green-400">كمية الإخلاء</th>
+              <th className="px-3 py-2 text-center font-semibold text-primary">معامل الإخلاء</th>
+              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">الإخلاء (ر.ي)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((r, i) => (
+              <tr key={i} className="hover:bg-secondary/20 transition-colors">
+                <td className="px-3 py-2 font-medium text-foreground max-w-[160px]">
+                  <div className="truncate">{r.projectName || `مشروع ${r.projectId || i + 1}`}</div>
+                </td>
+                <td className="px-3 py-2 text-center text-muted-foreground">{r.projectType || "—"}</td>
+                <td className="px-3 py-2 text-center text-muted-foreground">{r.branch || "—"}</td>
+                <td className="px-3 py-2 text-center font-mono text-yellow-400">{fmtN(r.requestedQty)}</td>
+                <td className="px-3 py-2 text-center font-mono text-green-400">{fmtN(r.clearedQty)}</td>
+                <td className={`px-3 py-2 text-center font-mono font-bold ${cfColor(r.clearanceFactor)}`}>
+                  {r.clearanceFactor ? `${(parseFloat(r.clearanceFactor) * 100).toFixed(1)}%` : "—"}
+                </td>
+                <td className="px-3 py-2 text-center font-mono text-muted-foreground">
+                  {r.clearedAmount ? parseFloat(r.clearedAmount).toLocaleString("ar-EG", { maximumFractionDigits: 0 }) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType; label: string }> = {
   "مسودة":       { color: "text-muted-foreground", bg: "bg-muted/20 border-muted/30", icon: Clock, label: "مسودة" },
@@ -34,6 +122,7 @@ function ConfidenceBar({ score }: { score: string | null }) {
 
 function WorkflowRow({ rec, onAction }: { rec: WorkflowRec; onAction: (id: number, action: string, extra?: Record<string, string>) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
   const [overrideMode, setOverrideMode] = useState(false);
   const [overrideQty, setOverrideQty] = useState("");
   const [overridePrice, setOverridePrice] = useState("");
@@ -178,6 +267,28 @@ function WorkflowRow({ rec, onAction }: { rec: WorkflowRec; onAction: (id: numbe
                     className="w-full bg-secondary border border-input rounded px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
               )}
+
+              {/* MODULE 17: Evidence Viewer toggle */}
+              <div
+                className="border border-card-border rounded-lg overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setShowEvidence(s => !s)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${showEvidence ? "bg-primary/10 text-primary" : "bg-secondary/20 text-muted-foreground hover:text-foreground"}`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    عرض الأدلة التاريخية ({rec.nProjects ?? 0} مشروع)
+                  </span>
+                  <TrendingUp className="w-3.5 h-3.5" />
+                </button>
+                {showEvidence && (
+                  <div className="p-3 bg-card border-t border-card-border">
+                    <EvidencePanel boqItemName={rec.boqItemName} elementName={rec.elementName} />
+                  </div>
+                )}
+              </div>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-2">

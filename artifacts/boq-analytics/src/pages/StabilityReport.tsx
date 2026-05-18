@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type AnalyticsRow } from "@/lib/api";
-import { FlaskConical, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
+import { FlaskConical, RefreshCw, AlertTriangle, CheckCircle, Printer } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis, Cell
@@ -58,14 +58,27 @@ export default function StabilityReportPage() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <FlaskConical className="w-6 h-6 text-green-400" />
-          تقرير العناصر الأعلى استقراراً
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          العناصر ذات السلوك التاريخي المنتظم — مرشحة للتوصيات الأكثر دقة والتخصيص الأضيق
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap print:hidden">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <FlaskConical className="w-6 h-6 text-green-400" />
+            تقرير العناصر الأعلى استقراراً
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            العناصر ذات السلوك التاريخي المنتظم — مرشحة للتوصيات الأكثر دقة والتخصيص الأضيق
+          </p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex-shrink-0"
+        >
+          <Printer className="w-4 h-4" />
+          طباعة التقرير
+        </button>
+      </div>
+      <div className="hidden print:block mb-6 border-b-2 border-gray-800 pb-4">
+        <h1 className="text-2xl font-bold text-center text-gray-900">تقرير العناصر الأعلى استقراراً</h1>
+        <p className="text-center text-gray-600 text-sm mt-1">منصة الذكاء الإنشائي التكيفي — {new Date().toLocaleDateString("ar-SA")}</p>
       </div>
 
       {/* KPIs */}
