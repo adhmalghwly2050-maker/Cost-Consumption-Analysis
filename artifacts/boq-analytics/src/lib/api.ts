@@ -127,6 +127,8 @@ export interface AnalyticsRow {
   efficiencyRating: string | null;
   stabilityScore: string | null;
   confidenceLevel: string | null;
+  // Standard vs actual over-allocation pct (positive = standard overestimates)
+  stdOverAllocPct: string | null;
 }
 
 export interface ItemAnalyticsRow extends AnalyticsRow {

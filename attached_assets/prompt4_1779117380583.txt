@@ -1,0 +1,253 @@
+نفذ هذا الprompt  
+You are acting as a senior construction cost-control systems engineer, ERP analytics architect, statistical modeling engineer, BOQ standardization specialist, and enterprise software architect.
+
+CRITICAL ISSUE DETECTED IN CURRENT IMPLEMENTATION
+
+The current analytics logic is mathematically incorrect because it does NOT normalize element quantities relative to the BOQ item quantity.
+
+This causes unrealistic and misleading recommendations.
+
+====================================================
+VERY IMPORTANT BUSINESS LOGIC
+
+The current standard quantities represent:
+
+QUANTITY OF ELEMENT REQUIRED FOR ONE UNIT OF THE BOQ ITEM.
+
+Example:
+
+If:
+
+- BOQ Item Quantity = 100
+- Cement Cleared Quantity = 500 bags
+
+Then:
+
+Actual Cement Consumption Per Unit =
+500 / 100 = 5 bags per BOQ unit
+
+====================================================
+CRITICAL CORRECTION REQUIRED
+
+The application MUST normalize all quantities and amounts using the BOQ item quantity.
+
+The BOQ item quantity exists in:
+
+Excel Column AC
+
+This column MUST become a core analytical field.
+
+====================================================
+MANDATORY NORMALIZATION LOGIC
+
+For EACH ELEMENT:
+
+---
+
+Normalized Requested Quantity
+
+Normalized Requested Quantity =
+Requested Element Quantity / BOQ Item Quantity
+
+====================================================
+Normalized Cleared Quantity
+
+Normalized Cleared Quantity =
+Cleared Element Quantity / BOQ Item Quantity
+
+====================================================
+Normalized Requested Amount
+
+Normalized Requested Amount =
+Requested Element Amount / BOQ Item Quantity
+
+====================================================
+Normalized Cleared Amount
+
+Normalized Cleared Amount =
+Cleared Element Amount / BOQ Item Quantity
+
+====================================================
+IMPORTANT
+
+ALL historical analytics MUST be based on normalized per-unit values.
+
+NOT raw project totals.
+
+====================================================
+VERY IMPORTANT
+
+Current recommendations are incorrect because:
+
+- they compare total project quantities
+  against
+- per-unit standard quantities.
+
+This creates mathematically invalid outputs.
+
+====================================================
+REQUIRED ANALYTICAL CHANGE
+
+The system must compare:
+
+---
+
+Standard Quantity Per Unit
+
+WITH
+
+---
+
+Historical Actual Quantity Per Unit
+
+ONLY.
+
+====================================================
+SAME REQUIREMENT FOR AMOUNTS
+
+The system must compare:
+
+---
+
+Standard Amount Per Unit
+
+WITH
+
+---
+
+Historical Actual Amount Per Unit
+
+====================================================
+REQUIRED HISTORICAL ANALYTICS
+
+For EACH ELEMENT inside EACH BOQ ITEM calculate:
+
+Using NORMALIZED VALUES ONLY:
+
+- Median normalized cleared quantity
+- P75 normalized cleared quantity
+- P80 normalized cleared quantity
+- Historical normalized unit price
+- Median normalized cleared amount
+- Historical over-allocation ratio
+- Stability score
+- Volatility score
+
+====================================================
+RECOMMENDATION ENGINE CORRECTION
+
+The recommendation engine MUST generate:
+
+---
+
+Recommended Quantity Per BOQ Unit
+
+NOT:
+Total project quantity recommendations.
+
+====================================================
+Recommended Amount Per BOQ Unit
+
+NOT:
+Total project amount recommendations.
+
+====================================================
+IMPORTANT BUSINESS INTERPRETATION
+
+The final adaptive standards must represent:
+
+"How much of this element is ACTUALLY needed for ONE UNIT of this BOQ item based on real historical execution behavior."
+
+====================================================
+CRITICAL REPORTING REQUIREMENT
+
+Add a NEW executive analytical report.
+
+====================================================
+REPORT PURPOSE
+
+Detect elements where:
+
+- Standard quantities are historically larger than actual cleared usage.
+  OR
+- Requested quantities are historically larger than actual cleared usage.
+
+====================================================
+REPORT NAME
+
+Arabic Report Name:
+
+"تقرير العناصر ذات المبالغة التاريخية في التعزيز"
+
+====================================================
+REPORT CONTENT
+
+For EACH ELEMENT display:
+
+| البند | العنصر | الكمية المعيارية لوحدة البند | الوسيط التاريخي الفعلي لوحدة البند | P80 الفعلي | نسبة المبالغة | الكمية المقترحة الجديدة | نسبة التصحيح |
+
+====================================================
+IMPORTANT REPORT LOGIC
+
+The report must rank elements by:
+
+---
+
+Historical Over-Allocation Severity
+
+Meaning:
+Which elements are consistently allocated/requested at quantities higher than historically needed.
+
+====================================================
+IMPORTANT
+
+This report is NOT for:
+
+- stock alerts
+- shortages
+- project risk
+
+Its purpose is:
+
+- correcting standards
+- reducing chronic over-allocation
+- improving allocation accuracy
+- optimizing financial usage
+
+====================================================
+VISUAL REQUIREMENTS
+
+Add:
+
+- Over-allocation ranking charts
+- Standard vs actual normalized quantity charts
+- Historical normalized consumption distributions
+- Trend charts for adaptive standard correction
+
+====================================================
+VERY IMPORTANT IMPLEMENTATION REQUIREMENT
+
+ALL analytics pipelines must be updated to use:
+
+PER-UNIT normalized calculations.
+
+This includes:
+
+- analytics engine
+- recommendation engine
+- charts
+- reports
+- statistical calculations
+- caching layers
+- exported Excel reports
+
+====================================================
+FINAL REQUIRED OUTCOME
+
+The system must evolve from:
+
+incorrect total-quantity comparisons
+
+into:
+
+a mathematically correct adaptive standardization engine based on normalized per-unit historical consumption behavior.

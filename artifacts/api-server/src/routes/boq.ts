@@ -338,7 +338,7 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
       const [boqItemName, elementName] = key.split("|||");
       const elementCode = rows.find(r => r.elementCode)?.elementCode || null;
 
-      // ── LAYER 2a: Consumption Factor (cleared/requested) ─────────────
+      // ── LAYER 2a: Consumption Factor (cleared/requested) — ratio, no BOQ normalization needed ──
       const cfs: number[] = [];
       for (const row of rows) {
         const req = parseNum(row.requestedQty);
@@ -347,77 +347,85 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
       }
       const cfStats = cfs.length > 0 ? computeStats(cfs) : null;
 
-      // ── LAYER 2b: Cleared Quantity stats (raw absolute values) ────────
-      const clearedQtys = rows
-        .map(r => parseNum(r.clearedQty))
-        .filter((v): v is number => v !== null && v > 0);
-      const clrQtyStats = clearedQtys.length > 0 ? computeStats(clearedQtys) : null;
+      // ── CRITICAL NORMALIZATION: divide by BOQ item quantity (col AC = row.qty) ──────────────
+      // Standard quantities represent "quantity of element per ONE UNIT of BOQ item".
+      // So to compare apples-to-apples we must normalize each project's element qty by boqQty.
+      //
+      //   normClearedQty    = clearedQty    / boqQty   → element units per BOQ item unit
+      //   normRequestedQty  = requestedQty  / boqQty
+      //   normClearedAmount = clearedAmount / boqQty   → cost per BOQ item unit
+      //
+      // Actual element unit price stays the same: clearedAmount / clearedQty
+      // (normalization cancels: (clearedAmount/boqQty) / (clearedQty/boqQty) = clearedAmount/clearedQty)
 
-      // ── LAYER 2c: Actual Unit Price = clearedAmount / clearedQty ──────
-      const actualPrices: number[] = [];
+      const normClearedQtys:   number[] = [];
+      const normRequestedQtys: number[] = [];
+      const normClearedAmounts: number[] = [];
+      const actualPrices:       number[] = [];
+      const overAllocPcts:      number[] = [];
+
       for (const row of rows) {
-        const clrAmt = parseNum(row.clearedAmount);
-        const clrQty = parseNum(row.clearedQty);
-        if (clrAmt != null && clrQty != null && clrQty > 0)
-          actualPrices.push(clrAmt / clrQty);
-      }
-      const priceStats = actualPrices.length > 0 ? computeStats(actualPrices) : null;
+        const boqQty  = parseNum(row.qty);
+        const clr     = parseNum(row.clearedQty);
+        const req     = parseNum(row.requestedQty);
+        const clrAmt  = parseNum(row.clearedAmount);
 
-      // ── LAYER 2d: Cleared Amount stats ───────────────────────────────
-      const clearedAmounts = rows
-        .map(r => parseNum(r.clearedAmount))
-        .filter((v): v is number => v !== null && v > 0);
-      const amtStats = clearedAmounts.length > 0 ? computeStats(clearedAmounts) : null;
-
-      // Requested qty stats (for legacy fields)
-      const requestedQtys = rows
-        .map(r => parseNum(r.requestedQty))
-        .filter((v): v is number => v !== null && v > 0);
-      const reqStats = requestedQtys.length > 0 ? computeStats(requestedQtys) : null;
-
-      // Over-allocation percentages
-      const overAllocPcts: number[] = [];
-      for (const row of rows) {
-        const req = parseNum(row.requestedQty);
-        const clr = parseNum(row.clearedQty);
+        // Normalize by BOQ item quantity
+        if (boqQty && boqQty > 0) {
+          if (clr !== null && clr >= 0)  normClearedQtys.push(clr / boqQty);
+          if (req !== null && req > 0)   normRequestedQtys.push(req / boqQty);
+          if (clrAmt !== null && clrAmt > 0) normClearedAmounts.push(clrAmt / boqQty);
+        }
+        // Actual unit price (not affected by BOQ normalization)
+        if (clrAmt != null && clr != null && clr > 0)
+          actualPrices.push(clrAmt / clr);
+        // Over-alloc ratio (requested vs cleared, in raw qty — ratio cancels boqQty)
         if (req && req > 0 && clr !== null)
           overAllocPcts.push(((req - clr) / Math.max(clr, 0.0001)) * 100);
       }
-      const overAllocStats = overAllocPcts.length > 0 ? computeStats(overAllocPcts) : null;
 
-      if (clearedQtys.length === 0 && cfs.length === 0) continue;
+      const clrQtyStats  = normClearedQtys.length   > 0 ? computeStats(normClearedQtys)   : null;
+      const reqQtyStats  = normRequestedQtys.length  > 0 ? computeStats(normRequestedQtys)  : null;
+      const priceStats   = actualPrices.length        > 0 ? computeStats(actualPrices)        : null;
+      const amtStats     = normClearedAmounts.length  > 0 ? computeStats(normClearedAmounts)  : null;
+      const overAllocStats = overAllocPcts.length     > 0 ? computeStats(overAllocPcts)        : null;
 
-      // ── LAYER 3: Adaptive Recommended Standard ────────────────────────
-      // Threshold selection is stability-adaptive:
-      //   CV < 0.15 → very stable → P75 is sufficient
-      //   CV 0.15–0.30 → moderate variance → use P80
-      //   CV > 0.30 → high volatility → use P90 as safety margin
+      if (normClearedQtys.length === 0 && cfs.length === 0) continue;
+
+      // ── LAYER 3: Adaptive Recommended Standard (per BOQ unit, normalized) ────────────────────
+      // Stability-adaptive threshold: higher variance → use a higher safety percentile
       let adaptiveQty: number | null = null;
       if (clrQtyStats && clrQtyStats.n > 0) {
         const cv = clrQtyStats.mean > 0 ? clrQtyStats.std / clrQtyStats.mean : 0;
-        if (cv < 0.15)      adaptiveQty = clrQtyStats.p75;
-        else if (cv < 0.30) adaptiveQty = clrQtyStats.p80;
-        else                adaptiveQty = clrQtyStats.p90;
+        if      (cv < 0.15) adaptiveQty = clrQtyStats.p75;  // very stable → P75
+        else if (cv < 0.30) adaptiveQty = clrQtyStats.p80;  // moderate → P80
+        else                adaptiveQty = clrQtyStats.p90;  // volatile → P90
       }
-      // Adaptive price = median of historically observed unit prices
       const adaptiveUnitPrice = priceStats ? priceStats.median : null;
-      // Adaptive amount = adaptive qty × adaptive price
+      // Adaptive amount per BOQ unit = (element units per BOQ unit) × (price per element unit)
       const adaptiveAmount = adaptiveQty != null && adaptiveUnitPrice != null
         ? adaptiveQty * adaptiveUnitPrice : null;
 
-      // ── LAYER 1: Original Standard Reference (denormalized) ───────────
+      // ── LAYER 1: Original Standard Reference (per BOQ unit from standard_reference) ─────────
       const stdKey = `${boqItemName.trim().toLowerCase()}|||${elementName.trim().toLowerCase()}`;
       const stdRef = standardMap.get(stdKey);
-      const origStdQty   = stdRef ? parseNum(stdRef.standardQty)   : null;
-      const origStdPrice = stdRef ? parseNum(stdRef.standardPrice)  : null;
+      const origStdQty    = stdRef ? parseNum(stdRef.standardQty)   : null;
+      const origStdPrice  = stdRef ? parseNum(stdRef.standardPrice)  : null;
       const origStdAmount = origStdQty != null && origStdPrice != null
         ? origStdQty * origStdPrice : null;
 
-      // Correction ratio: adaptive ÷ original — tells how much standard needs adjusting
+      // Correction ratio: how much adaptive per-unit qty differs from original standard per-unit qty
       const correctionRatio = adaptiveQty != null && origStdQty != null && origStdQty > 0
         ? adaptiveQty / origStdQty : null;
 
-      // Efficiency rating (based on CV of consumption factor)
+      // Standard vs actual over-allocation:
+      // Positive → original standard is LARGER than actual usage → over-allocation
+      // Negative → original standard is SMALLER than actual usage → under-allocation
+      const medNormClr = clrQtyStats ? clrQtyStats.median : null;
+      const stdOverAllocPct = origStdQty != null && medNormClr != null && medNormClr > 0
+        ? ((origStdQty - medNormClr) / medNormClr) * 100 : null;
+
+      // Efficiency rating (based on CV of consumption factor — CF ratio is scale-independent)
       let efficiencyRating = "غير محدد";
       if (cfStats && cfStats.mean > 0) {
         const cv = cfStats.std / cfStats.mean;
@@ -440,7 +448,7 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
         elementCode,
         nProjects:            nFinal,
         nOutliers:            cfStats ? cfStats.nOutliers : 0,
-        // CF stats
+        // CF stats (ratio — not affected by BOQ normalization)
         meanCf:               cfStats ? cfStats.mean.toFixed(6)   : null,
         medianCf:             cfStats ? cfStats.median.toFixed(6) : null,
         stdCf:                cfStats ? cfStats.std.toFixed(6)    : null,
@@ -451,11 +459,11 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
         minCf:                cfStats ? cfStats.min.toFixed(6)    : null,
         maxCf:                cfStats ? cfStats.max.toFixed(6)    : null,
         iqrCf:                cfStats ? cfStats.iqr.toFixed(6)    : null,
-        // Over-alloc
+        // Over-alloc (requested vs cleared raw ratio — BOQ cancels)
         avgOverAllocPct:      overAllocStats ? overAllocStats.mean.toFixed(4)   : null,
         medianOverAllocPct:   overAllocStats ? overAllocStats.median.toFixed(4) : null,
         recommendedFactor:    cfStats ? cfStats.p80.toFixed(6) : null,
-        // Cleared qty stats (Layer 2b)
+        // ── Layer 2b: NORMALIZED cleared qty (per BOQ unit) ──
         meanClearedQty:       clrQtyStats ? clrQtyStats.mean.toFixed(6)   : null,
         medianClearedQty:     clrQtyStats ? clrQtyStats.median.toFixed(6) : null,
         stdClearedQty:        clrQtyStats ? clrQtyStats.std.toFixed(6)    : null,
@@ -464,32 +472,33 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
         p90ClearedQty:        clrQtyStats ? clrQtyStats.p90.toFixed(6)    : null,
         minClearedQty:        clrQtyStats ? clrQtyStats.min.toFixed(6)    : null,
         maxClearedQty:        clrQtyStats ? clrQtyStats.max.toFixed(6)    : null,
-        // Actual price stats (Layer 2c)
+        // ── Layer 2c: Actual unit price (price per element unit — BOQ-independent) ──
         meanActualPrice:      priceStats ? priceStats.mean.toFixed(4)   : null,
         medianActualPrice:    priceStats ? priceStats.median.toFixed(4) : null,
         stdActualPrice:       priceStats ? priceStats.std.toFixed(4)    : null,
         p80ActualPrice:       priceStats ? priceStats.p80.toFixed(4)    : null,
-        // Cleared amount stats (Layer 2d)
+        // ── Layer 2d: NORMALIZED cleared amount (per BOQ unit) ──
         medianClearedAmount:  amtStats ? amtStats.median.toFixed(2) : null,
         p80ClearedAmount:     amtStats ? amtStats.p80.toFixed(2)    : null,
-        // Legacy
-        avgAllocQty:          reqStats    ? reqStats.mean.toFixed(6)       : null,
+        // Legacy fields (now normalized)
+        avgAllocQty:          reqQtyStats ? reqQtyStats.mean.toFixed(6)   : null,
         avgUsedQty:           clrQtyStats ? clrQtyStats.mean.toFixed(6)   : null,
         medianUsedQty:        clrQtyStats ? clrQtyStats.median.toFixed(6) : null,
-        avgClearedAmount:     clearedAmounts.length > 0 ? mean(clearedAmounts).toFixed(2) : null,
-        // Adaptive Layer 3
-        adaptiveQty:          adaptiveQty      != null ? adaptiveQty.toFixed(6)      : null,
-        adaptiveUnitPrice:    adaptiveUnitPrice != null ? adaptiveUnitPrice.toFixed(4) : null,
-        adaptiveAmount:       adaptiveAmount    != null ? adaptiveAmount.toFixed(2)   : null,
-        correctionRatio:      correctionRatio   != null ? correctionRatio.toFixed(6)  : null,
-        // Layer 1 denormalized
+        avgClearedAmount:     amtStats    ? amtStats.mean.toFixed(2)       : null,
+        // ── Adaptive Layer 3 (per BOQ unit) ──
+        adaptiveQty:          adaptiveQty       != null ? adaptiveQty.toFixed(6)       : null,
+        adaptiveUnitPrice:    adaptiveUnitPrice  != null ? adaptiveUnitPrice.toFixed(4)  : null,
+        adaptiveAmount:       adaptiveAmount     != null ? adaptiveAmount.toFixed(2)    : null,
+        correctionRatio:      correctionRatio    != null ? correctionRatio.toFixed(6)   : null,
+        // ── Layer 1 (per BOQ unit from standard reference) ──
         origStdQty:           origStdQty    != null ? origStdQty.toFixed(6)    : null,
         origStdPrice:         origStdPrice  != null ? origStdPrice.toFixed(4)  : null,
         origStdAmount:        origStdAmount != null ? origStdAmount.toFixed(2) : null,
         // Quality
         efficiencyRating,
-        stabilityScore:       stabilityScore != null ? stabilityScore.toFixed(4) : null,
+        stabilityScore:       stabilityScore  != null ? stabilityScore.toFixed(4)  : null,
         confidenceLevel,
+        stdOverAllocPct:      stdOverAllocPct != null ? stdOverAllocPct.toFixed(4) : null,
       });
     }
 
@@ -545,6 +554,7 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
               efficiencyRating:     sql`excluded.efficiency_rating`,
               stabilityScore:       sql`excluded.stability_score`,
               confidenceLevel:      sql`excluded.confidence_level`,
+              stdOverAllocPct:      sql`excluded.std_over_alloc_pct`,
               computedAt:           sql`now()`,
             },
           });

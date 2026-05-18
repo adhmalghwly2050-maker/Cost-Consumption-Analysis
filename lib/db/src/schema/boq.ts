@@ -109,6 +109,8 @@ export const analyticsResultsTable = pgTable("analytics_results", {
   efficiencyRating: text("efficiency_rating"),
   stabilityScore: numeric("stability_score", { precision: 10, scale: 4 }),
   confidenceLevel: text("confidence_level"),
+  // Standard vs actual over-allocation: (origStdQty - medianNormClearedQty) / medianNormClearedQty * 100
+  stdOverAllocPct: numeric("std_over_alloc_pct", { precision: 18, scale: 4 }),
   computedAt: timestamp("computed_at").defaultNow().notNull(),
 }, (t) => [unique("analytics_item_element_key").on(t.boqItemName, t.elementName)]);
 
