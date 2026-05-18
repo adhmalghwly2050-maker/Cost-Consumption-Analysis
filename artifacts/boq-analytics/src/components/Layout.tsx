@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  BarChart3, Upload, Search, BookOpen, Home, Menu, X, TrendingUp, Database
+  BarChart3, Upload, Search, BookOpen, Home, Menu, X, TrendingUp, Database, Zap
 } from "lucide-react";
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { path: "/import", label: "استيراد البيانات", icon: Upload },
   { path: "/analysis", label: "تحليل البنود", icon: BarChart3 },
   { path: "/item", label: "تفاصيل البند", icon: Search },
+  { path: "/adaptive", label: "المعايير التكيفية", icon: Zap },
   { path: "/standard", label: "المرجع المعياري", icon: BookOpen },
 ];
 

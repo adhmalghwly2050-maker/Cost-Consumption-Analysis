@@ -306,12 +306,23 @@ router.delete("/batches/:id", async (req: Request, res: Response) => {
 
 router.post("/run-analytics", async (_req: Request, res: Response) => {
   try {
-    const allRows = await db.select().from(historicalUsageTable);
+    const [allRows, allStandard] = await Promise.all([
+      db.select().from(historicalUsageTable),
+      db.select().from(standardReferenceTable),
+    ]);
+
     if (allRows.length === 0) {
       res.status(400).json({ error: "لا توجد بيانات تاريخية. يرجى رفع ملف Excel أولاً." });
       return;
     }
 
+    // Build standard reference lookup map (boqItemName|||elementName → row)
+    const standardMap = new Map<string, typeof allStandard[0]>();
+    for (const s of allStandard) {
+      standardMap.set(`${s.boqItemName.trim().toLowerCase()}|||${s.elementName.trim().toLowerCase()}`, s);
+    }
+
+    // Group historical rows by (boqItemName + elementName)
     const groups: Record<string, typeof allRows> = {};
     for (const row of allRows) {
       if (!row.boqItemName || !row.elementName) continue;
@@ -320,102 +331,165 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
       groups[key].push(row);
     }
 
-    const results: {
-      boqItemName: string;
-      elementName: string;
-      elementCode: string | null;
-      nProjects: number;
-      nOutliers: number;
-      meanCf: string | null;
-      medianCf: string | null;
-      stdCf: string | null;
-      p50Cf: string | null;
-      p75Cf: string | null;
-      p80Cf: string | null;
-      p90Cf: string | null;
-      minCf: string | null;
-      maxCf: string | null;
-      iqrCf: string | null;
-      avgOverAllocPct: string | null;
-      medianOverAllocPct: string | null;
-      recommendedFactor: string | null;
-      avgAllocQty: string | null;
-      avgUsedQty: string | null;
-      medianUsedQty: string | null;
-      avgClearedAmount: string | null;
-      efficiencyRating: string;
-      stabilityScore: string | null;
-    }[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const results: any[] = [];
 
     for (const [key, rows] of Object.entries(groups)) {
       const [boqItemName, elementName] = key.split("|||");
       const elementCode = rows.find(r => r.elementCode)?.elementCode || null;
 
-      const clearedQtys = rows.map(r => parseNum(r.clearedQty)).filter((v): v is number => v !== null && v > 0);
-      const requestedQtys = rows.map(r => parseNum(r.requestedQty)).filter((v): v is number => v !== null && v > 0);
-      const clearedAmounts = rows.map(r => parseNum(r.clearedAmount)).filter((v): v is number => v !== null && v > 0);
-
+      // ── LAYER 2a: Consumption Factor (cleared/requested) ─────────────
       const cfs: number[] = [];
       for (const row of rows) {
         const req = parseNum(row.requestedQty);
         const clr = parseNum(row.clearedQty);
         if (req && req > 0 && clr !== null && clr >= 0) cfs.push(clr / req);
       }
-
-      if (clearedQtys.length === 0 && cfs.length === 0) continue;
-
       const cfStats = cfs.length > 0 ? computeStats(cfs) : null;
-      const clrStats = clearedQtys.length > 0 ? computeStats(clearedQtys) : null;
+
+      // ── LAYER 2b: Cleared Quantity stats (raw absolute values) ────────
+      const clearedQtys = rows
+        .map(r => parseNum(r.clearedQty))
+        .filter((v): v is number => v !== null && v > 0);
+      const clrQtyStats = clearedQtys.length > 0 ? computeStats(clearedQtys) : null;
+
+      // ── LAYER 2c: Actual Unit Price = clearedAmount / clearedQty ──────
+      const actualPrices: number[] = [];
+      for (const row of rows) {
+        const clrAmt = parseNum(row.clearedAmount);
+        const clrQty = parseNum(row.clearedQty);
+        if (clrAmt != null && clrQty != null && clrQty > 0)
+          actualPrices.push(clrAmt / clrQty);
+      }
+      const priceStats = actualPrices.length > 0 ? computeStats(actualPrices) : null;
+
+      // ── LAYER 2d: Cleared Amount stats ───────────────────────────────
+      const clearedAmounts = rows
+        .map(r => parseNum(r.clearedAmount))
+        .filter((v): v is number => v !== null && v > 0);
+      const amtStats = clearedAmounts.length > 0 ? computeStats(clearedAmounts) : null;
+
+      // Requested qty stats (for legacy fields)
+      const requestedQtys = rows
+        .map(r => parseNum(r.requestedQty))
+        .filter((v): v is number => v !== null && v > 0);
       const reqStats = requestedQtys.length > 0 ? computeStats(requestedQtys) : null;
 
+      // Over-allocation percentages
       const overAllocPcts: number[] = [];
       for (const row of rows) {
         const req = parseNum(row.requestedQty);
         const clr = parseNum(row.clearedQty);
-        if (req && req > 0 && clr !== null) overAllocPcts.push(((req - clr) / Math.max(clr, 0.0001)) * 100);
+        if (req && req > 0 && clr !== null)
+          overAllocPcts.push(((req - clr) / Math.max(clr, 0.0001)) * 100);
       }
       const overAllocStats = overAllocPcts.length > 0 ? computeStats(overAllocPcts) : null;
 
-      const recommendedFactor = cfStats ? cfStats.p80 : null;
+      if (clearedQtys.length === 0 && cfs.length === 0) continue;
 
+      // ── LAYER 3: Adaptive Recommended Standard ────────────────────────
+      // Threshold selection is stability-adaptive:
+      //   CV < 0.15 → very stable → P75 is sufficient
+      //   CV 0.15–0.30 → moderate variance → use P80
+      //   CV > 0.30 → high volatility → use P90 as safety margin
+      let adaptiveQty: number | null = null;
+      if (clrQtyStats && clrQtyStats.n > 0) {
+        const cv = clrQtyStats.mean > 0 ? clrQtyStats.std / clrQtyStats.mean : 0;
+        if (cv < 0.15)      adaptiveQty = clrQtyStats.p75;
+        else if (cv < 0.30) adaptiveQty = clrQtyStats.p80;
+        else                adaptiveQty = clrQtyStats.p90;
+      }
+      // Adaptive price = median of historically observed unit prices
+      const adaptiveUnitPrice = priceStats ? priceStats.median : null;
+      // Adaptive amount = adaptive qty × adaptive price
+      const adaptiveAmount = adaptiveQty != null && adaptiveUnitPrice != null
+        ? adaptiveQty * adaptiveUnitPrice : null;
+
+      // ── LAYER 1: Original Standard Reference (denormalized) ───────────
+      const stdKey = `${boqItemName.trim().toLowerCase()}|||${elementName.trim().toLowerCase()}`;
+      const stdRef = standardMap.get(stdKey);
+      const origStdQty   = stdRef ? parseNum(stdRef.standardQty)   : null;
+      const origStdPrice = stdRef ? parseNum(stdRef.standardPrice)  : null;
+      const origStdAmount = origStdQty != null && origStdPrice != null
+        ? origStdQty * origStdPrice : null;
+
+      // Correction ratio: adaptive ÷ original — tells how much standard needs adjusting
+      const correctionRatio = adaptiveQty != null && origStdQty != null && origStdQty > 0
+        ? adaptiveQty / origStdQty : null;
+
+      // Efficiency rating (based on CV of consumption factor)
       let efficiencyRating = "غير محدد";
-      if (cfStats) {
-        if (cfStats.median >= 0.95) efficiencyRating = "ممتاز";
-        else if (cfStats.median >= 0.85) efficiencyRating = "جيد جداً";
-        else if (cfStats.median >= 0.70) efficiencyRating = "جيد";
-        else if (cfStats.median >= 0.50) efficiencyRating = "متوسط";
-        else efficiencyRating = "ضعيف";
+      if (cfStats && cfStats.mean > 0) {
+        const cv = cfStats.std / cfStats.mean;
+        if      (cv < 0.15) efficiencyRating = "ممتاز";
+        else if (cv < 0.30) efficiencyRating = "جيد جداً";
+        else if (cv < 0.50) efficiencyRating = "جيد";
+        else if (cv < 0.80) efficiencyRating = "متوسط";
+        else                efficiencyRating = "ضعيف";
       }
 
       const stabilityScore = cfStats && cfStats.std >= 0 && cfStats.mean > 0
-        ? Math.max(0, 1 - cfStats.std / cfStats.mean)
-        : null;
+        ? Math.max(0, 1 - cfStats.std / cfStats.mean) : null;
+
+      const nFinal = cfStats ? cfStats.n : (clrQtyStats?.n ?? 0);
+      const confidenceLevel = nFinal >= 10 ? "عالية" : nFinal >= 5 ? "متوسطة" : "منخفضة";
 
       results.push({
         boqItemName,
         elementName,
         elementCode,
-        nProjects: cfStats ? cfStats.n : (clrStats?.n ?? 0),
-        nOutliers: cfStats ? cfStats.nOutliers : 0,
-        meanCf: cfStats ? cfStats.mean.toFixed(6) : null,
-        medianCf: cfStats ? cfStats.median.toFixed(6) : null,
-        stdCf: cfStats ? cfStats.std.toFixed(6) : null,
-        p50Cf: cfStats ? cfStats.p50.toFixed(6) : null,
-        p75Cf: cfStats ? cfStats.p75.toFixed(6) : null,
-        p80Cf: cfStats ? cfStats.p80.toFixed(6) : null,
-        p90Cf: cfStats ? cfStats.p90.toFixed(6) : null,
-        minCf: cfStats ? cfStats.min.toFixed(6) : null,
-        maxCf: cfStats ? cfStats.max.toFixed(6) : null,
-        iqrCf: cfStats ? cfStats.iqr.toFixed(6) : null,
-        avgOverAllocPct: overAllocStats ? overAllocStats.mean.toFixed(4) : null,
-        medianOverAllocPct: overAllocStats ? overAllocStats.median.toFixed(4) : null,
-        recommendedFactor: recommendedFactor !== null ? recommendedFactor.toFixed(6) : null,
-        avgAllocQty: reqStats ? reqStats.mean.toFixed(6) : null,
-        avgUsedQty: clrStats ? clrStats.mean.toFixed(6) : null,
-        medianUsedQty: clrStats ? clrStats.median.toFixed(6) : null,
-        avgClearedAmount: clearedAmounts.length > 0 ? mean(clearedAmounts).toFixed(2) : null,
+        nProjects:            nFinal,
+        nOutliers:            cfStats ? cfStats.nOutliers : 0,
+        // CF stats
+        meanCf:               cfStats ? cfStats.mean.toFixed(6)   : null,
+        medianCf:             cfStats ? cfStats.median.toFixed(6) : null,
+        stdCf:                cfStats ? cfStats.std.toFixed(6)    : null,
+        p50Cf:                cfStats ? cfStats.p50.toFixed(6)    : null,
+        p75Cf:                cfStats ? cfStats.p75.toFixed(6)    : null,
+        p80Cf:                cfStats ? cfStats.p80.toFixed(6)    : null,
+        p90Cf:                cfStats ? cfStats.p90.toFixed(6)    : null,
+        minCf:                cfStats ? cfStats.min.toFixed(6)    : null,
+        maxCf:                cfStats ? cfStats.max.toFixed(6)    : null,
+        iqrCf:                cfStats ? cfStats.iqr.toFixed(6)    : null,
+        // Over-alloc
+        avgOverAllocPct:      overAllocStats ? overAllocStats.mean.toFixed(4)   : null,
+        medianOverAllocPct:   overAllocStats ? overAllocStats.median.toFixed(4) : null,
+        recommendedFactor:    cfStats ? cfStats.p80.toFixed(6) : null,
+        // Cleared qty stats (Layer 2b)
+        meanClearedQty:       clrQtyStats ? clrQtyStats.mean.toFixed(6)   : null,
+        medianClearedQty:     clrQtyStats ? clrQtyStats.median.toFixed(6) : null,
+        stdClearedQty:        clrQtyStats ? clrQtyStats.std.toFixed(6)    : null,
+        p75ClearedQty:        clrQtyStats ? clrQtyStats.p75.toFixed(6)    : null,
+        p80ClearedQty:        clrQtyStats ? clrQtyStats.p80.toFixed(6)    : null,
+        p90ClearedQty:        clrQtyStats ? clrQtyStats.p90.toFixed(6)    : null,
+        minClearedQty:        clrQtyStats ? clrQtyStats.min.toFixed(6)    : null,
+        maxClearedQty:        clrQtyStats ? clrQtyStats.max.toFixed(6)    : null,
+        // Actual price stats (Layer 2c)
+        meanActualPrice:      priceStats ? priceStats.mean.toFixed(4)   : null,
+        medianActualPrice:    priceStats ? priceStats.median.toFixed(4) : null,
+        stdActualPrice:       priceStats ? priceStats.std.toFixed(4)    : null,
+        p80ActualPrice:       priceStats ? priceStats.p80.toFixed(4)    : null,
+        // Cleared amount stats (Layer 2d)
+        medianClearedAmount:  amtStats ? amtStats.median.toFixed(2) : null,
+        p80ClearedAmount:     amtStats ? amtStats.p80.toFixed(2)    : null,
+        // Legacy
+        avgAllocQty:          reqStats    ? reqStats.mean.toFixed(6)       : null,
+        avgUsedQty:           clrQtyStats ? clrQtyStats.mean.toFixed(6)   : null,
+        medianUsedQty:        clrQtyStats ? clrQtyStats.median.toFixed(6) : null,
+        avgClearedAmount:     clearedAmounts.length > 0 ? mean(clearedAmounts).toFixed(2) : null,
+        // Adaptive Layer 3
+        adaptiveQty:          adaptiveQty      != null ? adaptiveQty.toFixed(6)      : null,
+        adaptiveUnitPrice:    adaptiveUnitPrice != null ? adaptiveUnitPrice.toFixed(4) : null,
+        adaptiveAmount:       adaptiveAmount    != null ? adaptiveAmount.toFixed(2)   : null,
+        correctionRatio:      correctionRatio   != null ? correctionRatio.toFixed(6)  : null,
+        // Layer 1 denormalized
+        origStdQty:           origStdQty    != null ? origStdQty.toFixed(6)    : null,
+        origStdPrice:         origStdPrice  != null ? origStdPrice.toFixed(4)  : null,
+        origStdAmount:        origStdAmount != null ? origStdAmount.toFixed(2) : null,
+        // Quality
         efficiencyRating,
-        stabilityScore: stabilityScore !== null ? stabilityScore.toFixed(4) : null,
+        stabilityScore:       stabilityScore != null ? stabilityScore.toFixed(4) : null,
+        confidenceLevel,
       });
     }
 
@@ -427,35 +501,68 @@ router.post("/run-analytics", async (_req: Request, res: Response) => {
           .onConflictDoUpdate({
             target: [analyticsResultsTable.boqItemName, analyticsResultsTable.elementName],
             set: {
-              elementCode: sql`excluded.element_code`,
-              nProjects: sql`excluded.n_projects`,
-              nOutliers: sql`excluded.n_outliers`,
-              meanCf: sql`excluded.mean_cf`,
-              medianCf: sql`excluded.median_cf`,
-              stdCf: sql`excluded.std_cf`,
-              p50Cf: sql`excluded.p50_cf`,
-              p75Cf: sql`excluded.p75_cf`,
-              p80Cf: sql`excluded.p80_cf`,
-              p90Cf: sql`excluded.p90_cf`,
-              minCf: sql`excluded.min_cf`,
-              maxCf: sql`excluded.max_cf`,
-              iqrCf: sql`excluded.iqr_cf`,
-              avgOverAllocPct: sql`excluded.avg_over_alloc_pct`,
-              medianOverAllocPct: sql`excluded.median_over_alloc_pct`,
-              recommendedFactor: sql`excluded.recommended_factor`,
-              avgAllocQty: sql`excluded.avg_alloc_qty`,
-              avgUsedQty: sql`excluded.avg_used_qty`,
-              medianUsedQty: sql`excluded.median_used_qty`,
-              avgClearedAmount: sql`excluded.avg_cleared_amount`,
-              efficiencyRating: sql`excluded.efficiency_rating`,
-              stabilityScore: sql`excluded.stability_score`,
-              computedAt: sql`now()`,
+              elementCode:          sql`excluded.element_code`,
+              nProjects:            sql`excluded.n_projects`,
+              nOutliers:            sql`excluded.n_outliers`,
+              meanCf:               sql`excluded.mean_cf`,
+              medianCf:             sql`excluded.median_cf`,
+              stdCf:                sql`excluded.std_cf`,
+              p50Cf:                sql`excluded.p50_cf`,
+              p75Cf:                sql`excluded.p75_cf`,
+              p80Cf:                sql`excluded.p80_cf`,
+              p90Cf:                sql`excluded.p90_cf`,
+              minCf:                sql`excluded.min_cf`,
+              maxCf:                sql`excluded.max_cf`,
+              iqrCf:                sql`excluded.iqr_cf`,
+              avgOverAllocPct:      sql`excluded.avg_over_alloc_pct`,
+              medianOverAllocPct:   sql`excluded.median_over_alloc_pct`,
+              recommendedFactor:    sql`excluded.recommended_factor`,
+              meanClearedQty:       sql`excluded.mean_cleared_qty`,
+              medianClearedQty:     sql`excluded.median_cleared_qty`,
+              stdClearedQty:        sql`excluded.std_cleared_qty`,
+              p75ClearedQty:        sql`excluded.p75_cleared_qty`,
+              p80ClearedQty:        sql`excluded.p80_cleared_qty`,
+              p90ClearedQty:        sql`excluded.p90_cleared_qty`,
+              minClearedQty:        sql`excluded.min_cleared_qty`,
+              maxClearedQty:        sql`excluded.max_cleared_qty`,
+              meanActualPrice:      sql`excluded.mean_actual_price`,
+              medianActualPrice:    sql`excluded.median_actual_price`,
+              stdActualPrice:       sql`excluded.std_actual_price`,
+              p80ActualPrice:       sql`excluded.p80_actual_price`,
+              medianClearedAmount:  sql`excluded.median_cleared_amount`,
+              p80ClearedAmount:     sql`excluded.p80_cleared_amount`,
+              avgAllocQty:          sql`excluded.avg_alloc_qty`,
+              avgUsedQty:           sql`excluded.avg_used_qty`,
+              medianUsedQty:        sql`excluded.median_used_qty`,
+              avgClearedAmount:     sql`excluded.avg_cleared_amount`,
+              adaptiveQty:          sql`excluded.adaptive_qty`,
+              adaptiveUnitPrice:    sql`excluded.adaptive_unit_price`,
+              adaptiveAmount:       sql`excluded.adaptive_amount`,
+              correctionRatio:      sql`excluded.correction_ratio`,
+              origStdQty:           sql`excluded.orig_std_qty`,
+              origStdPrice:         sql`excluded.orig_std_price`,
+              origStdAmount:        sql`excluded.orig_std_amount`,
+              efficiencyRating:     sql`excluded.efficiency_rating`,
+              stabilityScore:       sql`excluded.stability_score`,
+              confidenceLevel:      sql`excluded.confidence_level`,
+              computedAt:           sql`now()`,
             },
           });
       }
     }
 
     res.json({ success: true, analyzedGroups: results.length });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Adaptive standards endpoint — returns full 3-layer data for every element
+router.get("/adaptive-standards", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(analyticsResultsTable)
+      .orderBy(analyticsResultsTable.boqItemName, analyticsResultsTable.elementName);
+    res.json({ standards: rows });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }

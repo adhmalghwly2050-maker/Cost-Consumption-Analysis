@@ -5,6 +5,7 @@ import Dashboard from "@/pages/Dashboard";
 import ImportPage from "@/pages/Import";
 import AnalysisPage from "@/pages/Analysis";
 import ItemPage from "@/pages/Item";
+import AdaptivePage from "@/pages/Adaptive";
 import StandardPage from "@/pages/Standard";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
@@ -23,6 +24,7 @@ function Router() {
         <Route path="/import" component={ImportPage} />
         <Route path="/analysis" component={AnalysisPage} />
         <Route path="/item" component={ItemPage} />
+        <Route path="/adaptive" component={AdaptivePage} />
         <Route path="/standard" component={StandardPage} />
         <Route component={NotFound} />
       </Switch>

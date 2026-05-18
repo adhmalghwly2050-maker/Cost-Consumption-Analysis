@@ -1,0 +1,315 @@
+You are acting as a senior enterprise software architect, construction ERP analytics engineer, cost-control systems specialist, statistical modeling engineer, ETL architect, and adaptive standards optimization engineer.
+
+Your task is to REFINE, EXTEND, and UPGRADE the EXISTING web application into a fully adaptive historical standardization and intelligent recommendation platform for construction BOQ items and elements.
+
+IMPORTANT:
+
+- Preserve all current functionality.
+- DO NOT rebuild the system from scratch.
+- Extend the existing architecture incrementally.
+- Preserve compatibility with current data structures.
+- Maintain mobile responsiveness.
+- Maintain Arabic-first RTL UI.
+
+====================================================
+CRITICAL PROBLEM TO SOLVE
+
+The current system can detect:
+
+- differences between requested and cleared quantities
+- over-allocation percentages
+
+BUT:
+The current outputs are NOT decision-ready.
+
+The system currently behaves like:
+
+- a reporting tool
+
+NOT:
+
+- an adaptive recommendation engine.
+
+====================================================
+REQUIRED ARCHITECTURAL EVOLUTION
+
+The system MUST evolve into:
+
+A SELF-CORRECTING HISTORICAL STANDARDIZATION PLATFORM.
+
+This means:
+
+The application must continuously learn from accumulated historical projects and progressively refine:
+
+1. Standard quantities
+2. Standard amounts
+3. Standard unit prices
+4. Recommended allocation values
+
+====================================================
+IMPORTANT BUSINESS LOGIC
+
+For each:
+
+| BOQ Item + Element |
+
+The system must maintain THREE layers:
+
+---
+
+LAYER 1 — ORIGINAL STANDARD
+
+From the uploaded standard reference HTML system:
+
+- Original standard quantity
+- Original standard unit price
+- Original standard amount
+
+====================================================
+LAYER 2 — HISTORICAL ACTUAL BEHAVIOR
+
+Derived from accumulated historical project data:
+
+- Actual cleared quantity
+- Actual cleared amount
+- Actual historical unit price
+- Historical clearing patterns
+
+====================================================
+LAYER 3 — ADAPTIVE RECOMMENDED STANDARD
+
+Generated dynamically from historical analytics.
+
+This becomes:
+
+- the intelligent recommended quantity
+- the intelligent recommended amount
+- the intelligent recommended unit price
+
+====================================================
+CRITICAL BUSINESS REQUIREMENT
+
+The system must NOT merely display differences.
+
+It must:
+
+- derive NEW intelligent standards from real historical execution behavior.
+
+====================================================
+IMPORTANT QUANTITY LOGIC
+
+For each element:
+
+The system must calculate:
+
+---
+
+Historical Actual Quantity Usage
+
+Based primarily on:
+
+- cleared quantities
+
+NOT:
+
+- requested quantities
+
+====================================================
+IMPORTANT AMOUNT LOGIC
+
+The system must understand:
+
+Cleared Amount =
+Cleared Quantity × Actual Unit Price
+
+Therefore:
+The system must derive:
+
+---
+
+Historical Actual Unit Price
+
+Historical Unit Price =
+Cleared Amount / Cleared Quantity
+
+====================================================
+VERY IMPORTANT
+
+This means the system can progressively derive:
+
+1. Historical realistic quantities
+2. Historical realistic amounts
+3. Historical realistic unit prices
+
+from accumulated execution data.
+
+====================================================
+CRITICAL REQUIREMENT
+
+The system must generate:
+
+---
+
+Adaptive Recommended Quantity
+
+Using:
+
+- Median actual cleared usage
+- P75/P80 thresholds
+- Stability analysis
+- Outlier filtering
+
+====================================================
+Adaptive Recommended Amount
+
+Using:
+
+- Historical cleared amounts
+- Historical actual unit prices
+- Median/P80 analysis
+
+====================================================
+Adaptive Recommended Unit Price
+
+Using:
+
+- Historical actual cleared prices
+- Historical execution trends
+- Statistical stability
+
+====================================================
+VERY IMPORTANT
+
+The application must become:
+
+A DYNAMIC STANDARD CORRECTION ENGINE.
+
+NOT:
+A static reporting dashboard.
+
+====================================================
+REQUIRED ANALYTICAL OUTPUTS
+
+For EACH ELEMENT inside EACH BOQ ITEM display:
+
+| العنصر | الكمية المعيارية الأصلية | السعر المعياري الأصلي | الوسيط التاريخي للكميات المخلاة | الوسيط التاريخي لسعر الوحدة الفعلي | P80 للكميات | الكمية المقترحة الجديدة | السعر المقترح الجديد | المبلغ المقترح الجديد | نسبة التصحيح |
+
+====================================================
+IMPORTANT STATISTICAL REQUIREMENTS
+
+For quantities, amounts, and unit prices calculate:
+
+- Mean
+- Median
+- Standard deviation
+- P50
+- P75
+- P80
+- P90
+- Min
+- Max
+- IQR
+
+====================================================
+OUTLIER DETECTION
+
+Implement:
+
+- IQR filtering
+- Z-score filtering
+
+Abnormal projects MUST NOT distort recommendations.
+
+====================================================
+CRITICAL LEARNING REQUIREMENT
+
+The system must continuously improve recommendations over time.
+
+Each newly imported project must:
+
+- enrich the historical database
+- improve recommendation accuracy
+- refine adaptive standards
+
+====================================================
+IMPORTANT
+
+Uploaded Excel files are NOT temporary analysis files.
+
+They are:
+
+- historical learning feeds
+
+The database is the permanent accumulated intelligence layer.
+
+====================================================
+INCREMENTAL LEARNING REQUIREMENT
+
+When new Excel files are imported:
+
+DO NOT:
+
+- rebuild all analytics from scratch
+
+ONLY:
+
+- update affected items/elements/projects
+
+====================================================
+REQUIRED DATABASE EVOLUTION
+
+Create persistent adaptive tables such as:
+
+- original_standard_reference
+- historical_actual_usage
+- historical_actual_prices
+- adaptive_recommended_standards
+- analytics_results
+- recommendation_history
+
+====================================================
+CRITICAL SYSTEM GOAL
+
+The final system must answer:
+
+For each element inside each BOQ item:
+
+1. What quantity is ACTUALLY consumed historically?
+2. What amount is ACTUALLY consumed historically?
+3. What unit price is ACTUALLY observed historically?
+4. What SHOULD become the new intelligent standard quantity?
+5. What SHOULD become the new intelligent standard amount?
+6. What SHOULD become the new intelligent standard unit price?
+
+====================================================
+IMPORTANT USER EXPERIENCE REQUIREMENT
+
+The user must NOT only see:
+
+- differences
+- percentages
+- alerts
+
+The user must receive:
+
+- decision-ready recommendations
+- adaptive standards
+- intelligent corrected values
+
+====================================================
+ARABIC REQUIREMENTS
+
+The entire application MUST remain fully Arabic and RTL.
+
+Use professional Arabic engineering terminology.
+
+====================================================
+FINAL SYSTEM TRANSFORMATION
+
+Transform the current application from:
+
+- a historical reporting tool
+
+into:
+
+A self-learning adaptive construction standards intelligence platform capable of continuously correcting quantities, amounts, and unit-price standards based on real historical execution behavior.

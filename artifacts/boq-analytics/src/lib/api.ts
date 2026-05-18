@@ -10,10 +10,7 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  // Dashboard
   getDashboard: () => req<DashboardResponse>("/api/boq/dashboard"),
-  
-  // Import
   importExcel: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
@@ -21,16 +18,13 @@ export const api = {
   },
   getBatches: () => req<BatchesResponse>("/api/boq/batches"),
   deleteBatch: (id: number) => req<{ success: boolean }>(`/api/boq/batches/${id}`, { method: "DELETE" }),
-
-  // Standard reference
   seedStandard: () => req<{ success: boolean; inserted: number }>("/api/boq/seed-standard", { method: "POST" }),
   getStandard: () => req<StandardResponse>("/api/boq/standard"),
-
-  // Analytics
   runAnalytics: () => req<{ success: boolean; analyzedGroups: number }>("/api/boq/run-analytics", { method: "POST" }),
   getBoqItems: () => req<{ items: string[] }>("/api/boq/boq-items"),
   getItemAnalytics: (item: string) => req<ItemAnalyticsResponse>(`/api/boq/item-analytics?item=${encodeURIComponent(item)}`),
   getAllAnalytics: () => req<{ analytics: AnalyticsRow[] }>("/api/boq/analytics"),
+  getAdaptiveStandards: () => req<{ standards: AnalyticsRow[] }>("/api/boq/adaptive-standards"),
 };
 
 export interface DashboardResponse {
@@ -83,6 +77,7 @@ export interface AnalyticsRow {
   elementCode: string | null;
   nProjects: number;
   nOutliers: number;
+  // CF stats
   meanCf: string | null;
   medianCf: string | null;
   stdCf: string | null;
@@ -93,15 +88,45 @@ export interface AnalyticsRow {
   minCf: string | null;
   maxCf: string | null;
   iqrCf: string | null;
+  // Over-alloc
   avgOverAllocPct: string | null;
   medianOverAllocPct: string | null;
   recommendedFactor: string | null;
+  // Cleared qty stats (Layer 2b)
+  meanClearedQty: string | null;
+  medianClearedQty: string | null;
+  stdClearedQty: string | null;
+  p75ClearedQty: string | null;
+  p80ClearedQty: string | null;
+  p90ClearedQty: string | null;
+  minClearedQty: string | null;
+  maxClearedQty: string | null;
+  // Actual price stats (Layer 2c)
+  meanActualPrice: string | null;
+  medianActualPrice: string | null;
+  stdActualPrice: string | null;
+  p80ActualPrice: string | null;
+  // Cleared amount stats (Layer 2d)
+  medianClearedAmount: string | null;
+  p80ClearedAmount: string | null;
+  // Legacy
   avgAllocQty: string | null;
   avgUsedQty: string | null;
   medianUsedQty: string | null;
   avgClearedAmount: string | null;
+  // Adaptive Layer 3
+  adaptiveQty: string | null;
+  adaptiveUnitPrice: string | null;
+  adaptiveAmount: string | null;
+  correctionRatio: string | null;
+  // Layer 1 — original standard (denormalized)
+  origStdQty: string | null;
+  origStdPrice: string | null;
+  origStdAmount: string | null;
+  // Quality indicators
   efficiencyRating: string | null;
   stabilityScore: string | null;
+  confidenceLevel: string | null;
 }
 
 export interface ItemAnalyticsRow extends AnalyticsRow {

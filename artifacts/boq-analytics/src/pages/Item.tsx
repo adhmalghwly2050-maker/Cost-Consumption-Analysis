@@ -4,9 +4,9 @@ import { api, type ItemAnalyticsRow, type HistoricalRow } from "@/lib/api";
 import { useSearch } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, ReferenceLine, Legend
+  ReferenceLine, Legend
 } from "recharts";
-import { Search, RefreshCw, AlertTriangle, TrendingUp, BarChart3, CheckCircle } from "lucide-react";
+import { Search, RefreshCw, AlertTriangle, TrendingUp, BarChart3, CheckCircle, Zap } from "lucide-react";
 
 const n = (v: number | string | null | undefined, d = 3) =>
   v == null ? "—" : parseFloat(String(v)).toLocaleString("ar-EG", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -29,7 +29,7 @@ export default function ItemPage() {
 
   const [search, setSearch] = useState(initialItem);
   const [selected, setSelected] = useState(initialItem);
-  const [activeTab, setActiveTab] = useState<"table" | "charts" | "history">("table");
+  const [activeTab, setActiveTab] = useState<"table" | "adaptive" | "charts" | "history">("table");
 
   const { data: itemsData } = useQuery({ queryKey: ["boq-items"], queryFn: api.getBoqItems });
   const items = itemsData?.items ?? [];
@@ -144,11 +144,12 @@ export default function ItemPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 border-b border-border">
+          <div className="flex gap-2 border-b border-border flex-wrap">
             {[
-              { key: "table", label: "جدول التحليل", icon: BarChart3 },
-              { key: "charts", label: "الرسوم البيانية", icon: TrendingUp },
-              { key: "history", label: "البيانات التاريخية", icon: CheckCircle },
+              { key: "table",    label: "جدول التحليل",        icon: BarChart3 },
+              { key: "adaptive", label: "المعايير التكيفية",    icon: Zap },
+              { key: "charts",   label: "الرسوم البيانية",      icon: TrendingUp },
+              { key: "history",  label: "البيانات التاريخية",   icon: CheckCircle },
             ].map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -233,6 +234,100 @@ export default function ItemPage() {
             </div>
           )}
 
+          {/* Adaptive tab — 3-layer comparison per element */}
+          {activeTab === "adaptive" && (
+            <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-border flex items-center gap-2">
+                <Zap className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-sm">مقارنة الطبقات الثلاث — المعياري الأصلي / التاريخي الفعلي / التكيفي الموصى به</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs" style={{ minWidth: "1100px" }}>
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/10 text-center text-xs">
+                      <th className="px-3 py-2 text-right border-l border-border/50" />
+                      <th className="px-3 py-2 text-primary/80 font-semibold border border-border/50 bg-secondary/20" colSpan={3}>
+                        الطبقة الأولى — المعيار الأصلي
+                      </th>
+                      <th className="px-3 py-2 text-yellow-400/80 font-semibold border border-border/50 bg-yellow-400/5" colSpan={3}>
+                        الطبقة الثانية — التاريخي الفعلي
+                      </th>
+                      <th className="px-3 py-2 text-green-400/80 font-semibold border border-border/50 bg-green-400/5" colSpan={3}>
+                        الطبقة الثالثة — التكيفي الموصى به
+                      </th>
+                      <th className="px-3 py-2 border-border/50" colSpan={2} />
+                    </tr>
+                    <tr className="border-b border-border bg-secondary/30 text-muted-foreground">
+                      <th className="px-3 py-2 text-right">العنصر</th>
+                      <th className="px-3 py-2 text-center text-primary/70">الكمية المعيارية</th>
+                      <th className="px-3 py-2 text-center text-primary/70">السعر المعياري</th>
+                      <th className="px-3 py-2 text-center text-primary/70">المبلغ المعياري</th>
+                      <th className="px-3 py-2 text-center text-yellow-400/80">وسيط الكميات المخلاة</th>
+                      <th className="px-3 py-2 text-center text-yellow-400/80">وسيط السعر الفعلي</th>
+                      <th className="px-3 py-2 text-center text-yellow-400/80">P80 الكميات</th>
+                      <th className="px-3 py-2 text-center text-green-400">الكمية التكيفية</th>
+                      <th className="px-3 py-2 text-center text-green-400">السعر التكيفي</th>
+                      <th className="px-3 py-2 text-center text-green-400">المبلغ التكيفي</th>
+                      <th className="px-3 py-2 text-center">نسبة التصحيح</th>
+                      <th className="px-3 py-2 text-center">الثقة</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {analytics.map((row: ItemAnalyticsRow, i) => {
+                      const cr = row.correctionRatio ? parseFloat(row.correctionRatio) : null;
+                      const crColor = cr == null ? "text-muted-foreground"
+                        : cr > 1.20 ? "text-blue-400"
+                        : cr > 1.05 ? "text-yellow-400"
+                        : cr >= 0.95 ? "text-green-400"
+                        : cr >= 0.80 ? "text-orange-400"
+                        : "text-red-400";
+                      const confColor: Record<string, string> = { "عالية": "text-green-400", "متوسطة": "text-yellow-400", "منخفضة": "text-red-400" };
+                      return (
+                        <tr key={i} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-3 py-2.5 max-w-[160px]">
+                            <div className="font-medium text-foreground truncate">{row.elementName}</div>
+                            {row.elementCode && <div className="text-muted-foreground/60">{row.elementCode}</div>}
+                          </td>
+                          <td className="px-3 py-2.5 text-center font-mono text-foreground/70 bg-secondary/5">{n(row.standardQty ?? row.origStdQty, 4)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono text-foreground/70 bg-secondary/5">{fmtAmt(row.standardPrice ?? row.origStdPrice)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono text-foreground/70 bg-secondary/5">{fmtAmt(row.origStdAmount)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono text-yellow-400 bg-yellow-400/3">{n(row.medianClearedQty, 3)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono text-orange-400 bg-yellow-400/3">{fmtAmt(row.medianActualPrice)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono text-yellow-300 bg-yellow-400/3">{n(row.p80ClearedQty, 3)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono font-bold text-green-400 bg-green-400/3">{n(row.adaptiveQty, 3)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono font-bold text-green-300 bg-green-400/3">{fmtAmt(row.adaptiveUnitPrice)}</td>
+                          <td className="px-3 py-2.5 text-center font-mono font-bold text-accent bg-green-400/3">{fmtAmt(row.adaptiveAmount)}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className={`font-bold text-sm ${crColor}`}>
+                              {cr != null ? `${(cr * 100).toFixed(0)}%` : "—"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className={`text-xs font-medium ${confColor[row.confidenceLevel ?? ""] ?? "text-muted-foreground"}`}>
+                              {row.confidenceLevel ?? "—"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-secondary/50 border-t-2 border-primary/30 font-bold">
+                      <td className="px-3 py-3 text-foreground">الإجمالي</td>
+                      <td colSpan={3} className="px-3 py-3 text-center text-xs text-muted-foreground">المعيار الأصلي</td>
+                      <td colSpan={3} className="px-3 py-3 text-center text-xs text-muted-foreground">التاريخي الفعلي</td>
+                      <td colSpan={2} className="px-3 py-3" />
+                      <td className="px-3 py-3 text-center text-accent">
+                        {fmtAmt(analytics.reduce((s, r) => s + (r.adaptiveAmount ? parseFloat(r.adaptiveAmount) : 0), 0))} ر.ي
+                      </td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Charts tab */}
           {activeTab === "charts" && (
             <div className="space-y-5">
@@ -297,6 +392,7 @@ export default function ItemPage() {
                         <th className="px-3 py-3 text-center font-medium text-muted-foreground">كمية الإخلاء</th>
                         <th className="px-3 py-3 text-center font-medium text-muted-foreground">مبلغ الطلب</th>
                         <th className="px-3 py-3 text-center font-medium text-muted-foreground">مبلغ الإخلاء</th>
+                        <th className="px-3 py-3 text-center font-medium text-orange-400">سعر الوحدة الفعلي</th>
                         <th className="px-3 py-3 text-center font-medium text-muted-foreground">م. الاستهلاك</th>
                       </tr>
                     </thead>
@@ -317,6 +413,11 @@ export default function ItemPage() {
                             <td className="px-3 py-2 text-center font-mono text-yellow-400">{row.clearedQty ? parseFloat(row.clearedQty).toFixed(2) : "—"}</td>
                             <td className="px-3 py-2 text-center font-mono text-muted-foreground">{row.requestedAmount ? fmtAmt(row.requestedAmount) : "—"}</td>
                             <td className="px-3 py-2 text-center font-mono text-green-400">{row.clearedAmount ? fmtAmt(row.clearedAmount) : "—"}</td>
+                            <td className="px-3 py-2 text-center font-mono text-orange-400">
+                              {row.clearedAmount && row.clearedQty && parseFloat(row.clearedQty) > 0
+                                ? fmtAmt(parseFloat(row.clearedAmount) / parseFloat(row.clearedQty))
+                                : "—"}
+                            </td>
                             <td className="px-3 py-2 text-center">
                               {cf != null ? (
                                 <span className={`font-bold ${cf >= 0.9 ? "text-green-400" : cf >= 0.7 ? "text-yellow-400" : "text-red-400"}`}>
