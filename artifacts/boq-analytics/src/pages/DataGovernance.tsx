@@ -1,4 +1,4 @@
-import { Shield, BookOpen, Calculator, BarChart3, ChevronDown, ChevronUp, Database } from "lucide-react";
+import { Shield, BookOpen, Calculator, BarChart3, ChevronDown, ChevronUp, Database, Tag, Zap, FileSearch } from "lucide-react";
 import { useState } from "react";
 
 interface Section {
@@ -23,9 +23,88 @@ const GOVERNANCE_SECTIONS: Section[] = [
     ],
   },
   {
+    title: "تصنيف أدوار العناصر (الوحدة 1)",
+    icon: Tag,
+    color: "text-cyan-400",
+    items: [
+      {
+        term: "نواة أساسية (Primary Core)",
+        definition: "عنصر يُثبت أن البند نُفِّذ فعلياً. وجوده يؤكد التنفيذ الحقيقي، وغيابه يُفقد الثقة في إثبات التنفيذ",
+        example: "الإسمنت في بند اللياسة، الطابوق في بند البناء، الدهان في بند الطلاء"
+      },
+      {
+        term: "تحقق ثانوي (Secondary Validation)",
+        definition: "عنصر داعم يُعزز الثقة في التنفيذ لكنه لا يُثبته بمفرده. يُستخدم مع النواة الأساسية",
+        example: "الرمل والحصى مع الإسمنت في الخرسانة"
+      },
+      {
+        term: "مؤشر مقاول (Contractor Indicator)",
+        definition: "عنصر يدل على تنفيذ مقاولي — البند نُفِّذ بواسطة مقاول ولا تتوفر كميات المواد التفصيلية",
+        example: "مقطوعية، مقاولون، عقد تنفيذ، أجور عمالة مستأجرة"
+      },
+      {
+        term: "داعم (Supporting)",
+        definition: "عنصر إضافي داعم لا يُنفَّذ دائماً ومستقل بشكل جزئي",
+        example: "معدات، خدمات لوجستية"
+      },
+      {
+        term: "مالي (Financial)",
+        definition: "عنصر مالي بحت يُطلَب لأغراض ميزانية فقط. وجوده وحده لا يُثبت أي تنفيذ مادي",
+        example: "مخصصات مالية، احتياطيات، بنود إدارية"
+      },
+      {
+        term: "مساعد (Auxiliary)",
+        definition: "عنصر إضافي أو مساعد بطبيعته، لا يُستخدم دائماً",
+        example: "أدوات صغيرة، مواد استهلاكية ثانوية"
+      },
+    ],
+  },
+  {
+    title: "محرك تحليل وضع التنفيذ (الوحدات 2–4)",
+    icon: Zap,
+    color: "text-yellow-400",
+    items: [
+      {
+        term: "وضع التنفيذ (Execution Mode)",
+        definition: "تصنيف ذكي يحدد كيفية تنفيذ البند بناءً على العناصر المخلاة ومقارنتها بأدوارها المُصنَّفة",
+        formula: "إذا خُلِّيت النواة الأساسية → تنفيذ مباشر | إذا كان هناك مؤشر مقاول → تنفيذ مقاولي | إذا مالي فقط → مالي فقط"
+      },
+      {
+        term: "تنفيذ مباشر (Direct Execution)",
+        definition: "البند نُفِّذ مباشرة من الفرع — خُلِّيت النواة الأساسية والعناصر الجوهرية"
+      },
+      {
+        term: "تنفيذ مقاولي (Contractor Execution)",
+        definition: "البند نُفِّذ بواسطة مقاول — تظهر مؤشرات المقاولة دون العناصر المادية التفصيلية"
+      },
+      {
+        term: "تنفيذ جزئي (Partial Execution)",
+        definition: "نُفِّذ جزء من البند فقط — خُلِّيت بعض العناصر الجوهرية دون الأخرى"
+      },
+      {
+        term: "مالي فقط (Financial-Only Clearance)",
+        definition: "خُلِّيت عناصر مالية فقط دون أي عناصر مادية — قد يعني عدم تنفيذ مادي فعلي"
+      },
+      {
+        term: "مختلط (Mixed Execution)",
+        definition: "مزيج من التنفيذ المباشر والمقاولي في نفس البند"
+      },
+      {
+        term: "مشبوه / غير منفذ (Suspicious / Non-Executed)",
+        definition: "البند طُلب لكنه لم يُنفَّذ فعلياً في معظم المشاريع — يستوجب المراجعة الهندسية"
+      },
+      {
+        term: "نسبة اكتمال التنفيذ (Execution Completeness Score)",
+        definition: "درجة من 0 إلى 1 تعبّر عن مدى اكتمال إثبات التنفيذ بناءً على نسبة العناصر الجوهرية المخلاة",
+        formula: "Score = (عدد العناصر الجوهرية المخلاة) / (إجمالي العناصر الجوهرية المتوقعة)",
+        example: "إسمنت + حديد مخلاة من أصل 3 عناصر → Score = 0.67"
+      },
+    ],
+  },
+  {
     title: "تعريفات المؤشرات الإحصائية",
     icon: BarChart3,
-    color: "text-yellow-400",
+    color: "text-blue-400",
     items: [
       { term: "الوسيط (Median / P50)", definition: "القيمة الوسطى لمجموعة البيانات بعد ترتيبها — أقل تأثراً بالقيم الشاذة من المتوسط", formula: "الترتيب التصاعدي واختيار القيمة الوسطى" },
       { term: "P75", definition: "الرتبة المئوية الـ75 — 75% من المشاريع تحت هذه القيمة أو تساويها. تُستخدم للعناصر المستقرة جداً" },
@@ -74,7 +153,7 @@ const GOVERNANCE_SECTIONS: Section[] = [
     ],
   },
   {
-    title: "درجة الثقة والموثوقية (Module 2)",
+    title: "درجة الثقة والموثوقية",
     icon: Shield,
     color: "text-purple-400",
     items: [
@@ -97,7 +176,26 @@ const GOVERNANCE_SECTIONS: Section[] = [
     ],
   },
   {
-    title: "حوكمة المعايير وسير العمل (Module 4-7)",
+    title: "مشاهدة الأدلة والتتبع التاريخي (الوحدة 17)",
+    icon: FileSearch,
+    color: "text-teal-400",
+    items: [
+      {
+        term: "عارض الأدلة (Evidence Viewer)",
+        definition: "أداة تتيح للمستخدم الاطلاع على المشاريع والسجلات التاريخية التي أسهمت في توليد كل توصية — لإثبات مصداقية التوصية",
+      },
+      {
+        term: "الإخلاء الفعلي التاريخي",
+        definition: "سجل كل مشروع كلّفه الفرع في هذا البند — يُعرض مع الكميات المطلوبة والمخلاة والنسب",
+      },
+      {
+        term: "التتبع الكامل (Full Traceability)",
+        definition: "كل توصية مرتبطة بمجموعة مشاريع يمكن فحصها — لا توجد توصية بلا مصدر بيانات قابل للتحقق",
+      },
+    ],
+  },
+  {
+    title: "حوكمة المعايير وسير العمل",
     icon: Database,
     color: "text-orange-400",
     items: [
@@ -168,12 +266,12 @@ export default function DataGovernancePage() {
         </p>
       </div>
 
-      {/* Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
           { label: "أقسام الوثيقة", value: GOVERNANCE_SECTIONS.length, icon: BookOpen, color: "text-primary" },
           { label: "مصطلح موثّق", value: GOVERNANCE_SECTIONS.reduce((s, g) => s + g.items.length, 0), icon: Database, color: "text-green-400" },
           { label: "نماذج رياضية", value: GOVERNANCE_SECTIONS.reduce((s, g) => s + g.items.filter(i => i.formula).length, 0), icon: Calculator, color: "text-orange-400" },
+          { label: "وحدة ذكاء تنفيذي", value: 21, icon: Zap, color: "text-yellow-400" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-card border border-card-border rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -185,14 +283,12 @@ export default function DataGovernancePage() {
         ))}
       </div>
 
-      {/* Governance Sections */}
       <div className="space-y-4">
         {GOVERNANCE_SECTIONS.map((section, i) => (
           <GovernanceSection key={i} section={section} />
         ))}
       </div>
 
-      {/* Methodology Note */}
       <div className="bg-secondary/30 border border-border rounded-xl p-5">
         <h3 className="font-semibold text-sm text-foreground mb-3">ملاحظات منهجية مهمة</h3>
         <div className="space-y-2 text-xs text-muted-foreground">
@@ -200,6 +296,7 @@ export default function DataGovernancePage() {
           <p>• <strong className="text-foreground">عدم الاعتماد على المتوسط:</strong> النظام يُعطي الأولوية للوسيط والرتب المئوية على المتوسط لأنها أقل تأثراً بالشذوذات.</p>
           <p>• <strong className="text-foreground">التوصية لا تُطبَّق تلقائياً:</strong> كل توصية يجب أن تمر بدورة مراجعة واعتماد بشري قبل التطبيق.</p>
           <p>• <strong className="text-foreground">أولوية الحكم الهندسي:</strong> يمكن للمهندس تجاوز أي توصية إحصائية بمبرر موثّق — البيانات وسيلة وليست نهاية.</p>
+          <p>• <strong className="text-foreground">أصالة التنفيذ:</strong> المنصة لا تفترض أن كل طلب بند = تنفيذ فعلي. تحليل أدوار العناصر يكشف الفارق بين الطلب الاسمي والتنفيذ الحقيقي.</p>
           <p>• <strong className="text-foreground">التراكم المعرفي:</strong> كلما زادت المشاريع المرفوعة، كلما كانت التوصيات أدق وأكثر ثقة.</p>
         </div>
       </div>

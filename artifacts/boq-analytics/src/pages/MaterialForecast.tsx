@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type ForecastRow } from "@/lib/api";
 import {
   TrendingUp, RefreshCw, Plus, Trash2, Brain, BarChart3,
-  ChevronDown, ChevronUp, Download, AlertTriangle, CheckCircle
+  ChevronDown, ChevronUp, Download, AlertTriangle, CheckCircle, Printer
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -213,12 +213,21 @@ export default function MaterialForecastPage() {
 
           {/* Detail Table */}
           <div className="bg-card border border-card-border rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="p-4 border-b border-border flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-semibold text-sm flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400" />
                 تقرير الاحتياج الكلي المتوقع للمشروع
               </h3>
-              <span className="text-xs text-muted-foreground">{result.length} مادة</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{result.length} مادة</span>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors print:hidden"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  طباعة التقرير
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs" style={{ minWidth: "950px" }}>

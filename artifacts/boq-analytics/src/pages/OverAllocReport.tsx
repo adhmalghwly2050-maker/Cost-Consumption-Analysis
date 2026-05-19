@@ -122,7 +122,7 @@ export default function OverAllocReportPage() {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
+      <div className="flex items-start justify-between flex-wrap gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <TrendingDown className="w-6 h-6 text-destructive" />
@@ -132,14 +132,27 @@ export default function OverAllocReportPage() {
             عناصر تُخصَّص بكميات أعلى تاريخياً من الاستخدام الفعلي — أساس لتصحيح المعايير وترشيد التخصيص المالي
           </p>
         </div>
-        <button
-          onClick={() => runMutation.mutate()}
-          disabled={runMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${runMutation.isPending ? "animate-spin" : ""}`} />
-          تحديث التحليل
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => runMutation.mutate()}
+            disabled={runMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 disabled:opacity-50 border border-border"
+          >
+            <RefreshCw className={`w-4 h-4 ${runMutation.isPending ? "animate-spin" : ""}`} />
+            تحديث
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            طباعة التقرير
+          </button>
+        </div>
+      </div>
+      <div className="hidden print:block mb-6 border-b-2 border-gray-800 pb-4">
+        <h1 className="text-2xl font-bold text-center text-gray-900">تقرير العناصر ذات المبالغة التاريخية في التعزيز</h1>
+        <p className="text-center text-gray-600 text-sm mt-1">منصة الذكاء الإنشائي التكيفي — {new Date().toLocaleDateString("ar-SA")}</p>
       </div>
 
       {/* Definition note */}
