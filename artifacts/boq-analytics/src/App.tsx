@@ -21,6 +21,7 @@ import MaterialHistoricalPage from "@/pages/MaterialHistorical";
 import MaterialReportsPage from "@/pages/MaterialReports";
 import ElementRolesPage from "@/pages/ElementRoles";
 import UnexecutedReportPage from "@/pages/UnexecutedReport";
+import ItemComparisonPage from "@/pages/ItemComparison";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 
@@ -54,6 +55,7 @@ function Router() {
         <Route path="/material-reports" component={MaterialReportsPage} />
         <Route path="/element-roles" component={ElementRolesPage} />
         <Route path="/unexecuted-report" component={UnexecutedReportPage} />
+        <Route path="/item-comparison" component={ItemComparisonPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

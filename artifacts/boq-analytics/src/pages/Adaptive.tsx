@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type AnalyticsRow } from "@/lib/api";
-import { Search, RefreshCw, AlertTriangle, Zap, TrendingDown, TrendingUp, Minus, Info } from "lucide-react";
+import { Search, RefreshCw, AlertTriangle, Zap, TrendingDown, TrendingUp, Minus, Info, Download } from "lucide-react";
 import { toast } from "sonner";
 
 const n = (v: string | number | null | undefined, d = 3) =>
@@ -79,6 +79,16 @@ export default function AdaptivePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const seedMutation = useMutation({
+    mutationFn: api.seedStandard,
+    onSuccess: (d) => {
+      toast.success(`تم تحميل ${d.inserted} عنصر من المرجع المعياري`);
+      queryClient.invalidateQueries({ queryKey: ["adaptive-standards"] });
+      queryClient.invalidateQueries({ queryKey: ["standard"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const rows = data?.standards ?? [];
 
   const boqItems = useMemo(() => {
@@ -129,7 +139,7 @@ export default function AdaptivePage() {
       <h3 className="font-semibold text-foreground mb-2">لا توجد معايير تكيفية بعد</h3>
       <p className="text-sm text-muted-foreground mb-4">يرجى رفع بيانات تاريخية ثم تشغيل التحليل الإحصائي</p>
       <button
-        onClick={() => runMutation.mutate()}
+        onClick={() => runMutation.mutate(undefined)}
         disabled={runMutation.isPending}
         className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
@@ -152,14 +162,24 @@ export default function AdaptivePage() {
             منظومة التصحيح الذاتي للمعايير — مقارنة 3 طبقات: المعياري الأصلي، التاريخي الفعلي، والموصى به التكيفي
           </p>
         </div>
-        <button
-          onClick={() => runMutation.mutate()}
-          disabled={runMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${runMutation.isPending ? "animate-spin" : ""}`} />
-          تحديث التحليل
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => seedMutation.mutate(undefined)}
+            disabled={seedMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground border border-border rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            <Download className={`w-4 h-4 ${seedMutation.isPending ? "animate-spin" : ""}`} />
+            تحميل المرجع المعياري
+          </button>
+          <button
+            onClick={() => runMutation.mutate(undefined)}
+            disabled={runMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${runMutation.isPending ? "animate-spin" : ""}`} />
+            تحديث التحليل
+          </button>
+        </div>
       </div>
 
       {/* Legend */}

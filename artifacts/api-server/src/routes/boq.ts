@@ -427,7 +427,7 @@ router.post("/run-analytics", async (req: Request, res: Response) => {
         const clrAmt  = parseNum(row.clearedAmount) ?? 0; // null → 0
 
         if (boqQty && boqQty > 0) {
-          normClearedQtys.push(clr / boqQty);
+          if (clr > 0) normClearedQtys.push(clr / boqQty);
           if (req !== null && req > 0) normRequestedQtys.push(req / boqQty);
           if (clrAmt > 0) normClearedAmounts.push(clrAmt / boqQty);
         }
@@ -1068,6 +1068,110 @@ router.get("/reports/unexecuted", async (_req: Request, res: Response) => {
 
     res.json({ rows: unexecuted, totalUnexecuted: unexecuted.length });
   } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+// ── MODULE 19: Item Comparison ───────────────────────────────────────────────
+router.get("/item-comparison", async (req: Request, res: Response) => {
+  const itemName = req.query.item as string;
+  if (!itemName) { res.status(400).json({ error: "اسم البند مطلوب" }); return; }
+  try {
+    const [standard, historical] = await Promise.all([
+      db.select().from(standardReferenceTable)
+        .where(sql`LOWER(boq_item_name) = LOWER(${itemName})`),
+      db.select().from(historicalUsageTable)
+        .where(eq(historicalUsageTable.boqItemName, itemName)),
+    ]);
+
+    type ElGroup = {
+      totalRequestedQty: number; totalRequestedAmount: number;
+      totalClearedQty: number; totalClearedAmount: number;
+      nProjects: number; nCleared: number;
+      normReqQtys: number[]; normClrQtys: number[];
+    };
+    const elementGroups: Record<string, ElGroup> = {};
+
+    for (const row of historical) {
+      if (!row.elementName) continue;
+      const el = row.elementName;
+      if (!elementGroups[el]) {
+        elementGroups[el] = {
+          totalRequestedQty: 0, totalRequestedAmount: 0,
+          totalClearedQty: 0, totalClearedAmount: 0,
+          nProjects: 0, nCleared: 0, normReqQtys: [], normClrQtys: [],
+        };
+      }
+      const g = elementGroups[el];
+      const boqQty = parseNum(row.qty) ?? 0;
+      const reqQty = parseNum(row.requestedQty) ?? 0;
+      const reqAmt = parseNum(row.requestedAmount) ?? 0;
+      const clrQty = parseNum(row.clearedQty) ?? 0;
+      const clrAmt = parseNum(row.clearedAmount) ?? 0;
+      g.totalRequestedQty += reqQty;
+      g.totalRequestedAmount += reqAmt;
+      g.totalClearedQty += clrQty;
+      g.totalClearedAmount += clrAmt;
+      g.nProjects++;
+      if (clrQty > 0) g.nCleared++;
+      if (boqQty > 0) {
+        if (reqQty > 0) g.normReqQtys.push(reqQty / boqQty);
+        if (clrQty > 0) g.normClrQtys.push(clrQty / boqQty);
+      }
+    }
+
+    const allElements = Array.from(new Set([
+      ...standard.map(s => s.elementName),
+      ...Object.keys(elementGroups),
+    ]));
+
+    const elements = allElements.map(elName => {
+      const stdRef = standard.find(s => s.elementName.trim().toLowerCase() === elName.trim().toLowerCase());
+      const g = elementGroups[elName];
+      const stdQty = stdRef ? parseNum(stdRef.standardQty) : null;
+      const stdPrice = stdRef ? parseNum(stdRef.standardPrice) : null;
+      const stdAmount = stdQty != null && stdPrice != null ? stdQty * stdPrice : null;
+
+      const sortedReq = [...(g?.normReqQtys ?? [])].sort((a, b) => a - b);
+      const sortedClr = [...(g?.normClrQtys ?? [])].sort((a, b) => a - b);
+      const medianReqQty = sortedReq.length > 0 ? percentile(sortedReq, 50) : null;
+      const medianClrQty = sortedClr.length > 0 ? percentile(sortedClr, 50) : null;
+
+      return {
+        elementName: elName,
+        elementUnit: stdRef?.elementUnit || null,
+        hasStandard: !!stdRef,
+        stdQty: stdQty != null ? stdQty.toFixed(4) : null,
+        stdPrice: stdPrice != null ? stdPrice.toFixed(2) : null,
+        stdAmount: stdAmount != null ? stdAmount.toFixed(2) : null,
+        medianReqQty: medianReqQty != null ? medianReqQty.toFixed(4) : null,
+        totalReqQty: g ? g.totalRequestedQty.toFixed(4) : null,
+        totalReqAmount: g ? g.totalRequestedAmount.toFixed(2) : null,
+        medianClrQty: medianClrQty != null ? medianClrQty.toFixed(4) : null,
+        totalClrQty: g ? g.totalClearedQty.toFixed(4) : null,
+        totalClrAmount: g ? g.totalClearedAmount.toFixed(2) : null,
+        nProjects: g ? g.nProjects : 0,
+        nCleared: g ? g.nCleared : 0,
+      };
+    });
+
+    const boqUnit = standard[0]?.boqUnit || historical[0]?.unit || null;
+    res.json({ elements, itemName, boqUnit });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ── MODULE 19b: BOQ items list (all historical items) ────────────────────────
+router.get("/boq-items-all", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .selectDistinct({ boqItemName: historicalUsageTable.boqItemName })
+      .from(historicalUsageTable)
+      .where(sql`boq_item_name IS NOT NULL AND boq_item_name != ''`)
+      .orderBy(historicalUsageTable.boqItemName);
+    res.json({ items: rows.map(r => r.boqItemName).filter(Boolean) });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 // ── MODULE 8: Advanced Reports ────────────────────────────────────────────────

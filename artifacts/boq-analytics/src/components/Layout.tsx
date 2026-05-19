@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   BarChart3, Upload, Search, BookOpen, Home, Menu, X, TrendingUp,
   Database, Zap, TrendingDown, GitBranch, Shield, Layers, FlaskConical,
-  Activity, ScrollText, Brain, Tag, FileX2
+  Activity, ScrollText, Brain, Tag, FileX2, GitCompareArrows
 } from "lucide-react";
 
 const navGroups = [
@@ -19,6 +19,7 @@ const navGroups = [
     items: [
       { path: "/analysis", label: "تحليل البنود", icon: BarChart3 },
       { path: "/item", label: "تفاصيل البند", icon: Search },
+      { path: "/item-comparison", label: "مقارنة البند", icon: GitCompareArrows },
       { path: "/adaptive", label: "المعايير التكيفية", icon: Zap },
       { path: "/project-context", label: "تصنيف المشاريع", icon: Layers },
     ],

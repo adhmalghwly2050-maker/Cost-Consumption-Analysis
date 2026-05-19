@@ -78,6 +78,11 @@ export const api = {
 
   // ── MODULE 18: Unexecuted Report ─────────────────────────────────────────
   getUnexecutedReport: () => req<UnexecutedReportResponse>("/api/boq/reports/unexecuted"),
+
+  // ── MODULE 19: Item Comparison ───────────────────────────────────────────
+  getItemComparison: (item: string) =>
+    req<ItemComparisonResponse>(`/api/boq/item-comparison?item=${encodeURIComponent(item)}`),
+  getBoqItemsAll: () => req<{ items: string[] }>("/api/boq/boq-items-all"),
 };
 
 // ── BOQ TYPES ────────────────────────────────────────────────────────────────
@@ -136,6 +141,18 @@ export interface EvidenceSummary {
   zeroCleared: number; pctZeroCleared: string;
 }
 export interface EvidenceResponse { rows: EvidenceRow[]; summary: EvidenceSummary }
+
+// ── MODULE 19: Item Comparison Types ─────────────────────────────────────────
+export interface ItemComparisonElement {
+  elementName: string; elementUnit: string | null; hasStandard: boolean;
+  stdQty: string | null; stdPrice: string | null; stdAmount: string | null;
+  medianReqQty: string | null; totalReqQty: string | null; totalReqAmount: string | null;
+  medianClrQty: string | null; totalClrQty: string | null; totalClrAmount: string | null;
+  nProjects: number; nCleared: number;
+}
+export interface ItemComparisonResponse {
+  elements: ItemComparisonElement[]; itemName: string; boqUnit: string | null;
+}
 
 // ── MODULE 18: Unexecuted Report Types ───────────────────────────────────────
 export interface UnexecutedRow {
