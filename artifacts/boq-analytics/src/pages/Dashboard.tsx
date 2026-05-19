@@ -324,7 +324,7 @@ function InsightTable({
 }: {
   title: string;
   icon: React.ReactNode;
-  rows: ReturnType<typeof api.getDashboard extends Promise<infer T> ? T : never>["insights"]["mostStable"];
+  rows: import("@/lib/api").AnalyticsRow[];
   valueKey: string;
   valueLabel: string;
   color: string;
@@ -344,7 +344,7 @@ function InsightTable({
             </div>
             <div className={`text-sm font-bold ${color} flex-shrink-0 mr-2`}>
               {(() => {
-                const v = (row as Record<string, unknown>)[valueKey];
+                const v = (row as unknown as Record<string, unknown>)[valueKey];
                 return v != null ? parseFloat(v as string).toFixed(3) : "—";
               })()}
             </div>

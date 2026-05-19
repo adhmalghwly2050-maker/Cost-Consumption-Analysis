@@ -55,7 +55,7 @@ export default function MaterialHubPage() {
 
   const { data: masterData } = useQuery({ queryKey: ["mat-master"], queryFn: api.matGetMaster });
   const { data: statsData } = useQuery({ queryKey: ["mat-historical-stats"], queryFn: api.matGetHistoricalStats });
-  const { data: coeffData } = useQuery({ queryKey: ["mat-coefficients"], queryFn: api.matGetCoefficients });
+  const { data: coeffData } = useQuery({ queryKey: ["mat-coefficients"], queryFn: () => api.matGetCoefficients() });
   const { data: forecastsData } = useQuery({ queryKey: ["mat-forecasts"], queryFn: api.matGetForecasts });
 
   const seedMutation = useMutation({

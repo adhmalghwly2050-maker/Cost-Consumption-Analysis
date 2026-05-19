@@ -136,6 +136,37 @@
 .efficiency-medium { color: hsl(38 92% 50%); }
 .efficiency-poor { color: hsl(0 84% 60%); }
 
+/* ── Print styles ────────────────────────────────────────────────────────── */
+@media print {
+  /* hide sidebar, nav, header, search, legend, actions */
+  nav, aside, header,
+  [data-sidebar], [data-nav],
+  .print\:hidden { display: none !important; }
+
+  body { background: #fff !important; color: #000 !important; font-size: 11px; direction: rtl; }
+
+  /* make main content full width */
+  main, #root > div, .flex { display: block !important; width: 100% !important; }
+
+  /* force white background on cards and table */
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #999 !important; padding: 4px 6px !important; color: #000 !important; background: transparent !important; }
+  thead tr:first-child th { background: #e8e8e8 !important; font-weight: bold; }
+
+  /* remove box shadows and rounded corners */
+  * { box-shadow: none !important; border-radius: 0 !important; }
+
+  /* print title */
+  h1 { font-size: 16px !important; margin-bottom: 8px; }
+  p { font-size: 11px !important; }
+
+  /* avoid page breaks inside table rows */
+  tr { page-break-inside: avoid; }
+
+  /* summary grid */
+  .grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+}
+
 @layer utilities {
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate:not(.no-default-active-elevate) {

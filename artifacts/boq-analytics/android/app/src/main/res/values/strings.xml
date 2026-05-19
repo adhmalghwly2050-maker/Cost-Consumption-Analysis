@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">تحليل بنود الأعمال</string>
+    <string name="title_activity_main">تحليل بنود الأعمال</string>
+    <string name="package_name">com.boq.analytics</string>
+    <string name="custom_url_scheme">com.boq.analytics</string>
+</resources>

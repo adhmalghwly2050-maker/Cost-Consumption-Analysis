@@ -109,7 +109,7 @@ export default function OverAllocReportPage() {
       <h3 className="font-semibold text-foreground mb-2">لا توجد بيانات تحليلية</h3>
       <p className="text-sm text-muted-foreground mb-4">يرجى رفع بيانات تاريخية ثم تشغيل التحليل أولاً</p>
       <button
-        onClick={() => runMutation.mutate()}
+        onClick={() => runMutation.mutate(undefined)}
         disabled={runMutation.isPending}
         className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
@@ -134,7 +134,7 @@ export default function OverAllocReportPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => runMutation.mutate()}
+            onClick={() => runMutation.mutate(undefined)}
             disabled={runMutation.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 disabled:opacity-50 border border-border"
           >

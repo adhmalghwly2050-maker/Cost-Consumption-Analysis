@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Search, RefreshCw, AlertTriangle, GitCompareArrows, BookOpen, TrendingUp, TrendingDown, Download, Pencil, Check, X } from "lucide-react";
+import { Search, RefreshCw, AlertTriangle, GitCompareArrows, BookOpen, TrendingUp, TrendingDown, Download, Pencil, Check, X, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 interface ComparisonElement {
@@ -146,14 +146,25 @@ export default function ItemComparisonPage() {
             جدول مقارنة ثلاثي: الكميات المعيارية · التعزيز (الطلب) · الإخلاء — لكل عنصر بالنسبة لوحدة البند
           </p>
         </div>
-        <button
-          onClick={() => seedMutation.mutate(undefined)}
-          disabled={seedMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground border border-border rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          <Download className={`w-4 h-4 ${seedMutation.isPending ? "animate-spin" : ""}`} />
-          تحميل المرجع المعياري
-        </button>
+        <div className="flex items-center gap-2 flex-wrap print:hidden">
+          <button
+            onClick={() => seedMutation.mutate(undefined)}
+            disabled={seedMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground border border-border rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            <Download className={`w-4 h-4 ${seedMutation.isPending ? "animate-spin" : ""}`} />
+            تحميل المرجع المعياري
+          </button>
+          {selected && elements.length > 0 && (
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Printer className="w-4 h-4" />
+              طباعة المقارنة
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Legend */}
