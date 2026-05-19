@@ -1174,6 +1174,437 @@ router.get("/boq-items-all", async (_req: Request, res: Response) => {
   }
 });
 
+// ── FEATURE: Auto-import from master_dataset.csv ─────────────────────────────
+router.post("/import-from-csv", async (_req: Request, res: Response) => {
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const readline = await import("readline");
+
+    const csvPath = path.resolve(process.cwd(), "..", "..", "outputs", "boq_analysis", "master_dataset.csv");
+    if (!fs.existsSync(csvPath)) {
+      res.status(404).json({ error: "ملف master_dataset.csv غير موجود. شغّل التحليل أولاً." });
+      return;
+    }
+
+    // Clear existing data
+    await db.delete(historicalUsageTable);
+    await db.delete(importBatchesTable);
+
+    const [batch] = await db.insert(importBatchesTable)
+      .values({ filename: "master_dataset.csv", rowCount: 0, status: "processing" })
+      .returning();
+
+    const content = fs.readFileSync(csvPath, "utf-8");
+    const lines = content.split("\n");
+    const rawHeader = lines[0].replace(/^\uFEFF/, "");
+    const headers = rawHeader.split(",");
+
+    const col = (name: string) => headers.indexOf(name);
+    const idxProjId    = col("project_id");
+    const idxProjName  = col("project_name");
+    const idxProjType  = col("item_type");
+    const idxStatus    = col("status");
+    const idxItemId    = col("item_id");
+    const idxItemDesc  = col("item_desc");
+    const idxBranch    = col("branch");
+    const idxUom       = col("uom");
+    const idxQty       = col("quantity_num");
+    const idxUnitPrice = col("unit_price_num");
+    const idxValue     = col("value_num");
+    const idxElemId    = col("element_id");
+    const idxElemDesc  = col("element_desc");
+    const idxReqQty    = col("request_qty_num");
+    const idxReqAmt    = col("request_amount_num");
+    const idxClrQty    = col("cleared_qty_num");
+    const idxClrAmt    = col("cleared_amount_num");
+    const idxTotReq    = col("total_requests_num");
+    const idxTotClr    = col("total_cleared_num");
+
+    const toInsert: Parameters<typeof db.insert>[0] extends infer T ? never : never[] = [];
+    const rows: {
+      batchId: number; projectId: string | null; projectName: string | null;
+      projectType: string | null; projectStatus: string | null;
+      boqItemCode: string | null; boqItemName: string | null;
+      branch: string | null; unit: string | null;
+      qty: string | null; unitPrice: string | null; totalValue: string | null;
+      elementCode: string | null; elementName: string | null;
+      requestedQty: string | null; requestedAmount: string | null;
+      clearedQty: string; clearedAmount: string;
+      totalRequests: string | null; totalCleared: string | null;
+    }[] = [];
+
+    const get = (cols: string[], i: number) => i >= 0 && i < cols.length ? (cols[i] || "").trim().replace(/^"|"$/g, "") : "";
+    const num = (v: string) => { const n = parseFloat(v.replace(/,/g, "")); return isNaN(n) ? null : String(n); };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      // Simple CSV split (handles quoted fields with commas)
+      const cols: string[] = [];
+      let cur = "", inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
+        else cur += ch;
+      }
+      cols.push(cur.trim());
+
+      const elemName = get(cols, idxElemDesc);
+      if (!elemName) continue;
+
+      rows.push({
+        batchId: batch.id,
+        projectId: get(cols, idxProjId) || null,
+        projectName: get(cols, idxProjName) || null,
+        projectType: get(cols, idxProjType) || null,
+        projectStatus: get(cols, idxStatus) || null,
+        boqItemCode: get(cols, idxItemId) || null,
+        boqItemName: get(cols, idxItemDesc) || null,
+        branch: get(cols, idxBranch) || null,
+        unit: get(cols, idxUom) || null,
+        qty: num(get(cols, idxQty)),
+        unitPrice: num(get(cols, idxUnitPrice)),
+        totalValue: num(get(cols, idxValue)),
+        elementCode: get(cols, idxElemId) || null,
+        elementName: elemName,
+        requestedQty: num(get(cols, idxReqQty)),
+        requestedAmount: num(get(cols, idxReqAmt)),
+        clearedQty: num(get(cols, idxClrQty)) ?? "0",
+        clearedAmount: num(get(cols, idxClrAmt)) ?? "0",
+        totalRequests: num(get(cols, idxTotReq)),
+        totalCleared: num(get(cols, idxTotClr)),
+      });
+    }
+
+    const CHUNK = 500;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      await db.insert(historicalUsageTable).values(rows.slice(i, i + CHUNK));
+    }
+
+    await db.update(importBatchesTable)
+      .set({ status: "done", rowCount: rows.length })
+      .where(eq(importBatchesTable.id, batch.id));
+
+    res.json({ success: true, rowsImported: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ── FEATURE: Open Custodies Board ────────────────────────────────────────────
+router.get("/open-custodies", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(historicalUsageTable)
+      .where(sql`project_status IN ('جاري', 'جاري الاقفال')`);
+
+    // Group by project — keep max totals (repeated per element row)
+    const projectMap = new Map<string, {
+      projectId: string; projectName: string; projectType: string;
+      status: string; date: string; branch: string;
+      totalRequests: number; totalCleared: number;
+      elements: Set<string>;
+    }>();
+
+    for (const r of rows) {
+      const pid = r.projectId || "unknown";
+      const treq = parseNum(r.totalRequests) ?? 0;
+      const tclr = parseNum(r.totalCleared) ?? 0;
+      if (!projectMap.has(pid)) {
+        projectMap.set(pid, {
+          projectId: pid,
+          projectName: r.projectName || "",
+          projectType: r.projectType || "",
+          status: r.projectStatus || "",
+          date: "",
+          branch: r.branch || "",
+          totalRequests: treq,
+          totalCleared: tclr,
+          elements: new Set(),
+        });
+      }
+      const p = projectMap.get(pid)!;
+      if (treq > p.totalRequests) p.totalRequests = treq;
+      if (tclr > p.totalCleared) p.totalCleared = tclr;
+      if (r.elementName) p.elements.add(r.elementName);
+      if (r.boqItemName) p.elements.add(r.boqItemName);
+    }
+
+    const projects = Array.from(projectMap.values())
+      .map(p => ({
+        projectId: p.projectId,
+        projectName: p.projectName,
+        projectType: p.projectType,
+        status: p.status,
+        branch: p.branch,
+        totalRequests: p.totalRequests,
+        totalCleared: p.totalCleared,
+        remaining: p.totalRequests - p.totalCleared,
+        clearancePct: p.totalRequests > 0
+          ? ((p.totalCleared / p.totalRequests) * 100) : 0,
+        elementCount: p.elements.size,
+      }))
+      .sort((a, b) => b.remaining - a.remaining);
+
+    const totalRequests = projects.reduce((s, p) => s + p.totalRequests, 0);
+    const totalCleared  = projects.reduce((s, p) => s + p.totalCleared, 0);
+    const byStatus = projects.reduce<Record<string, number>>((acc, p) => {
+      acc[p.status] = (acc[p.status] || 0) + 1;
+      return acc;
+    }, {});
+    const byType = projects.reduce<Record<string, { count: number; remaining: number }>>((acc, p) => {
+      if (!acc[p.projectType]) acc[p.projectType] = { count: 0, remaining: 0 };
+      acc[p.projectType].count++;
+      acc[p.projectType].remaining += p.remaining;
+      return acc;
+    }, {});
+
+    res.json({
+      projects,
+      summary: {
+        totalProjects: projects.length,
+        totalRequests,
+        totalCleared,
+        totalRemaining: totalRequests - totalCleared,
+        overallClearancePct: totalRequests > 0
+          ? ((totalCleared / totalRequests) * 100) : 0,
+        byStatus,
+        byType: Object.entries(byType).map(([type, d]) => ({
+          type, count: d.count, remaining: d.remaining,
+        })).sort((a, b) => b.remaining - a.remaining),
+      },
+    });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+// ── FEATURE: Over-Allocation Alerts ──────────────────────────────────────────
+router.get("/over-allocation-alerts", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(historicalUsageTable)
+      .where(sql`requested_amount IS NOT NULL AND requested_amount::numeric > 0`);
+
+    // Group by boqItemName + elementName
+    const groups = new Map<string, {
+      boqItemName: string; elementName: string; elementCode: string | null;
+      totalReqAmt: number; totalClrAmt: number;
+      totalReqQty: number; totalClrQty: number;
+      n: number; nZeroCleared: number;
+      projectTypes: Set<string>;
+    }>();
+
+    for (const r of rows) {
+      if (!r.boqItemName || !r.elementName) continue;
+      const key = `${r.boqItemName}|||${r.elementName}`;
+      const reqAmt = parseNum(r.requestedAmount) ?? 0;
+      const clrAmt = parseNum(r.clearedAmount) ?? 0;
+      const reqQty = parseNum(r.requestedQty) ?? 0;
+      const clrQty = parseNum(r.clearedQty) ?? 0;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          boqItemName: r.boqItemName,
+          elementName: r.elementName,
+          elementCode: r.elementCode || null,
+          totalReqAmt: 0, totalClrAmt: 0,
+          totalReqQty: 0, totalClrQty: 0,
+          n: 0, nZeroCleared: 0,
+          projectTypes: new Set(),
+        });
+      }
+      const g = groups.get(key)!;
+      g.totalReqAmt += reqAmt;
+      g.totalClrAmt += clrAmt;
+      g.totalReqQty += reqQty;
+      g.totalClrQty += clrQty;
+      g.n++;
+      if (clrAmt === 0 && clrQty === 0) g.nZeroCleared++;
+      if (r.projectType) g.projectTypes.add(r.projectType);
+    }
+
+    const alerts = Array.from(groups.values())
+      .filter(g => g.totalReqAmt > 0)
+      .map(g => ({
+        boqItemName: g.boqItemName,
+        elementName: g.elementName,
+        elementCode: g.elementCode,
+        totalReqAmt: g.totalReqAmt,
+        totalClrAmt: g.totalClrAmt,
+        gapAmt: g.totalReqAmt - g.totalClrAmt,
+        gapPct: ((g.totalReqAmt - g.totalClrAmt) / g.totalReqAmt) * 100,
+        totalReqQty: g.totalReqQty,
+        totalClrQty: g.totalClrQty,
+        gapQty: g.totalReqQty - g.totalClrQty,
+        nRecords: g.n,
+        nZeroCleared: g.nZeroCleared,
+        pctNeverCleared: g.n > 0 ? (g.nZeroCleared / g.n) * 100 : 0,
+        projectTypes: Array.from(g.projectTypes),
+        severity: g.totalReqAmt - g.totalClrAmt > 100000
+          ? "عالية"
+          : g.totalReqAmt - g.totalClrAmt > 30000
+            ? "متوسطة"
+            : "منخفضة",
+      }))
+      .filter(g => g.gapPct > 5)
+      .sort((a, b) => b.gapAmt - a.gapAmt);
+
+    const totalGap = alerts.reduce((s, a) => s + a.gapAmt, 0);
+    const totalReq = alerts.reduce((s, a) => s + a.totalReqAmt, 0);
+
+    res.json({
+      alerts,
+      summary: {
+        totalAlerts: alerts.length,
+        highSeverity: alerts.filter(a => a.severity === "عالية").length,
+        medSeverity: alerts.filter(a => a.severity === "متوسطة").length,
+        totalGapAmt: totalGap,
+        totalReqAmt: totalReq,
+        overallGapPct: totalReq > 0 ? (totalGap / totalReq) * 100 : 0,
+      },
+    });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+// ── FEATURE: Monthly Timeline ─────────────────────────────────────────────────
+router.get("/monthly-timeline", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select({
+      requestedAmount: historicalUsageTable.requestedAmount,
+      clearedAmount:   historicalUsageTable.clearedAmount,
+      projectType:     historicalUsageTable.projectType,
+      projectStatus:   historicalUsageTable.projectStatus,
+    }).from(historicalUsageTable)
+      .where(sql`requested_amount IS NOT NULL`);
+
+    // We need date from the raw data — re-fetch with date
+    const rowsWithDate = await db.select().from(historicalUsageTable)
+      .where(sql`requested_amount IS NOT NULL AND requested_amount::numeric > 0`);
+
+    const monthly = new Map<string, {
+      month: string; reqAmt: number; clrAmt: number;
+      byType: Record<string, { req: number; clr: number }>;
+    }>();
+
+    for (const r of rowsWithDate) {
+      // date stored as DD/MM/YYYY — also check requestedAmount
+      let dateStr = "";
+      // Try to extract date from available fields - use project_id suffix as fallback
+      // The date comes from the HTML parser, stored in historical_usage but not exposed in schema
+      // Use requestedAmount as proxy signal
+      const reqAmt = parseNum(r.requestedAmount) ?? 0;
+      const clrAmt = parseNum(r.clearedAmount) ?? 0;
+      if (reqAmt === 0) continue;
+
+      // Build monthly from project status as approximation
+      // Since we don't have date in DB, group by projectId prefix (year encoded)
+      const pid = r.projectId || "";
+      // Project IDs like 208060014762 — first 6 digits = 208060 (branch code)
+      // Use batch import time as proxy — approximate
+      dateStr = "غير محدد";
+      const key = dateStr;
+
+      if (!monthly.has(key)) {
+        monthly.set(key, { month: key, reqAmt: 0, clrAmt: 0, byType: {} });
+      }
+      const m = monthly.get(key)!;
+      m.reqAmt += reqAmt;
+      m.clrAmt += clrAmt;
+    }
+
+    // Since date is in source files but not in DB schema, serve from CSV output
+    // Read the master_dataset.csv which has date_field
+    const fs = await import("fs");
+    const path = await import("path");
+    const csvPath = path.resolve(process.cwd(), "..", "..", "outputs", "boq_analysis", "master_dataset.csv");
+
+    let timelineData: Array<{ month: string; label: string; reqAmt: number; clrAmt: number; gap: number; byType: Record<string, { req: number; clr: number }> }> = [];
+
+    try {
+      const csvContent = fs.readFileSync(csvPath, "utf-8");
+      const csvLines = csvContent.split("\n");
+      const headers = csvLines[0].replace(/^\uFEFF/, "").split(",");
+      const idxDate = headers.indexOf("date_field");
+      const idxReqAmt = headers.indexOf("request_amount_num");
+      const idxClrAmt = headers.indexOf("cleared_amount_num");
+      const idxType = headers.indexOf("item_type");
+
+      const monthMap = new Map<string, { reqAmt: number; clrAmt: number; byType: Record<string, { req: number; clr: number }> }>();
+
+      const parseCsvLine = (line: string): string[] => {
+        const result: string[] = [];
+        let cur = "", inQ = false;
+        for (const ch of line) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === "," && !inQ) { result.push(cur.trim()); cur = ""; }
+          else cur += ch;
+        }
+        result.push(cur.trim());
+        return result;
+      };
+
+      for (let i = 1; i < csvLines.length; i++) {
+        const line = csvLines[i];
+        if (!line.trim()) continue;
+        const cols = parseCsvLine(line);
+        const dateRaw = (cols[idxDate] || "").trim().replace(/"/g, "");
+        const reqAmt = parseFloat((cols[idxReqAmt] || "0").replace(/"/g, "")) || 0;
+        const clrAmt = parseFloat((cols[idxClrAmt] || "0").replace(/"/g, "")) || 0;
+        const ptype  = (cols[idxType] || "").replace(/"/g, "").trim() || "غير محدد";
+
+        if (!dateRaw) continue;
+
+        const parts = dateRaw.split("/");
+        if (parts.length !== 3) continue;
+        // date_field format: DD/MM/YYYY
+        const day = parts[0], month = parts[1], year = parts[2];
+        if (!year || year.length < 4) continue;
+        const monthKey = `${year}-${month.padStart(2, "0")}`;
+
+        if (!monthMap.has(monthKey)) {
+          monthMap.set(monthKey, { reqAmt: 0, clrAmt: 0, byType: {} });
+        }
+        const m = monthMap.get(monthKey)!;
+        m.reqAmt += reqAmt;
+        m.clrAmt += clrAmt;
+        if (!m.byType[ptype]) m.byType[ptype] = { req: 0, clr: 0 };
+        m.byType[ptype].req += reqAmt;
+        m.byType[ptype].clr += clrAmt;
+      }
+
+      const arabicMonths = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+      timelineData = Array.from(monthMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, v]) => {
+          const [yr, mo] = key.split("-");
+          const moName = arabicMonths[parseInt(mo, 10) - 1] || mo;
+          return {
+            month: key,
+            label: `${moName} ${yr}`,
+            reqAmt: v.reqAmt,
+            clrAmt: v.clrAmt,
+            gap: v.reqAmt - v.clrAmt,
+            byType: v.byType,
+          };
+        });
+    } catch (_e) {
+      // CSV not available — return empty
+    }
+
+    const totalReq = timelineData.reduce((s, m) => s + m.reqAmt, 0);
+    const totalClr = timelineData.reduce((s, m) => s + m.clrAmt, 0);
+
+    res.json({
+      timeline: timelineData,
+      summary: {
+        totalMonths: timelineData.length,
+        totalReqAmt: totalReq,
+        totalClrAmt: totalClr,
+        totalGap: totalReq - totalClr,
+        peakMonth: timelineData.sort((a, b) => b.reqAmt - a.reqAmt)[0]?.label || null,
+      },
+    });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
 // ── MODULE 8: Advanced Reports ────────────────────────────────────────────────
 router.get("/reports/stability", async (_req: Request, res: Response) => {
   try {
