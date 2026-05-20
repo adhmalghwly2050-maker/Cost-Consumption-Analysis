@@ -22,6 +22,9 @@ import MaterialReportsPage from "@/pages/MaterialReports";
 import ElementRolesPage from "@/pages/ElementRoles";
 import UnexecutedReportPage from "@/pages/UnexecutedReport";
 import ItemComparisonPage from "@/pages/ItemComparison";
+import OpenCustodiesPage from "@/pages/OpenCustodies";
+import OverAllocAlertsPage from "@/pages/OverAllocAlerts";
+import CustodyTimelinePage from "@/pages/CustodyTimeline";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 
@@ -56,6 +59,9 @@ function Router() {
         <Route path="/element-roles" component={ElementRolesPage} />
         <Route path="/unexecuted-report" component={UnexecutedReportPage} />
         <Route path="/item-comparison" component={ItemComparisonPage} />
+        <Route path="/open-custodies" component={OpenCustodiesPage} />
+        <Route path="/over-alloc-alerts" component={OverAllocAlertsPage} />
+        <Route path="/custody-timeline" component={CustodyTimelinePage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
