@@ -106,6 +106,74 @@ export const api = {
     return { success: true, inserted: rows.length };
   },
 
+  // ── Import standard quantities from Excel ─────────────────────────────────
+  // Expected columns (by header name, order flexible):
+  //   اسم البند | رقم البند | الورقة | وحدة البند | اسم الصنف | وحدة الصنف | الكمية | سعر الوحدة
+  importStandardFromExcel: async (file: File): Promise<{ inserted: number; items: number }> => {
+    const XLSX = await import('xlsx');
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const allRows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (allRows.length < 2) throw new Error('الملف لا يحتوي على بيانات');
+
+    const header = (allRows[0] as string[]).map(c => String(c ?? '').trim());
+    const col = (name: string) => header.findIndex(h => h.includes(name));
+
+    const iItemName  = col('اسم البند');
+    const iItemNum   = col('رقم البند');
+    const iSheet     = col('الورقة');
+    const iBoqUnit   = col('وحدة البند');
+    const iElName    = col('اسم الصنف');
+    const iElUnit    = col('وحدة الصنف');
+    const iQty       = col('الكمية');
+    const iPrice     = col('سعر الوحدة');
+
+    if (iItemName < 0 || iElName < 0 || iQty < 0)
+      throw new Error('لم يتم العثور على أعمدة إلزامية: "اسم البند" و"اسم الصنف" و"الكمية"');
+
+    const g = (row: unknown[], i: number) => i >= 0 ? String(row[i] ?? '').trim() : '';
+
+    const rows: import('./db').StandardReference[] = [];
+    const itemIds = new Map<string, string>();
+
+    for (const row of allRows.slice(1)) {
+      const itemName = g(row, iItemName);
+      const elName   = g(row, iElName);
+      if (!itemName || !elName) continue;
+
+      if (!itemIds.has(itemName)) {
+        const slug = itemName.replace(/\s+/g, '_').slice(0, 30) + '_imp_' + itemIds.size;
+        itemIds.set(itemName, slug);
+      }
+
+      rows.push({
+        boqItemId:     itemIds.get(itemName)!,
+        boqItemName:   itemName,
+        boqItemNumber: g(row, iItemNum) || null,
+        sheet:         g(row, iSheet)   || null,
+        boqUnit:       g(row, iBoqUnit) || null,
+        elementName:   elName,
+        elementUnit:   g(row, iElUnit)  || null,
+        standardQty:   g(row, iQty)     || '0',
+        standardPrice: g(row, iPrice)   || '0',
+      });
+    }
+
+    if (rows.length === 0) throw new Error('لم يتم قراءة أي صفوف — تحقق من تنسيق الملف');
+
+    // Append (don't clear) — remove existing items with same names first
+    const importedItemNames = [...itemIds.keys()];
+    const existing = await boqDb.standardReference
+      .filter(r => importedItemNames.includes(r.boqItemName))
+      .toArray();
+    if (existing.length > 0) {
+      await boqDb.standardReference.bulkDelete(existing.map(r => r.id!));
+    }
+    await boqDb.standardReference.bulkAdd(rows);
+    return { inserted: rows.length, items: itemIds.size };
+  },
+
   getStandard: async (): Promise<StandardResponse> => {
     const all = await boqDb.standardReference.toArray();
     const grouped: Record<string, typeof all> = {};
@@ -415,7 +483,7 @@ export const api = {
         totalRequestedAmount: totalReqAmt.toFixed(2), projectCount: projectIds.size,
       });
     }
-    result.sort((a, b) => parseFloat(b.pctUnexecuted) - parseFloat(a.pctUnexecuted));
+    result.sort((a, b) => b.projectCount - a.projectCount);
     return { rows: result, totalUnexecuted: result.length };
   },
 

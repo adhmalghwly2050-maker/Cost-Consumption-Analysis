@@ -37,9 +37,9 @@ export default function OpenCustodiesPage() {
   useEffect(() => {
     (async () => {
       const rows = await boqDb.historicalUsage.toArray();
-      const open = rows.filter(r =>
-        r.projectStatus === "جاري" || r.projectStatus === "جاري الاقفال"
-      );
+      // سلسلة الحالات: لم يبدأ → جاري → منجز → مسلم → جاري الاقفال → مقفل نهائي
+      // "جاري" فقط هي المشاريع المفتوحة فعلاً
+      const open = rows.filter(r => r.projectStatus === "جاري");
 
       const map = new Map<string, ProjectRow>();
       for (const r of open) {

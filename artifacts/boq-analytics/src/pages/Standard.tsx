@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { BookOpen, Search, RefreshCw, Database, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, Search, RefreshCw, Database, ChevronDown, ChevronUp, Upload, FileSpreadsheet } from "lucide-react";
 
 const SHEET_COLORS: Record<string, string> = {
   "الرصيف": "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -27,9 +27,11 @@ const fmtPrice = (n: number) =>
 export default function StandardPage() {
   const qc = useQueryClient();
   const [seeding, setSeeding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
   const [sheetFilter, setSheetFilter] = useState("الكل");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["standard"],
@@ -72,6 +74,26 @@ export default function StandardPage() {
     }
   };
 
+  const handleImportFile = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
+      toast.error("يرجى رفع ملف Excel أو CSV (.xlsx / .xls / .csv)");
+      return;
+    }
+    setImporting(true);
+    try {
+      const r = await api.importStandardFromExcel(file);
+      toast.success(`تم استيراد ${r.inserted} صنف لـ ${r.items} بند معياري`);
+      qc.invalidateQueries({ queryKey: ["standard"] });
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setImporting(false);
+      if (importRef.current) importRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
@@ -82,14 +104,49 @@ export default function StandardPage() {
             الكميات والأسعار المعيارية لجميع البنود الإنشائية — {items.length} بند
           </p>
         </div>
-        <button
-          onClick={handleSeedStandard}
-          disabled={seeding}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          {seeding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-          {items.length === 0 ? "تحميل البيانات المعيارية" : "إعادة تحميل البيانات"}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Import from Excel */}
+          <input
+            ref={importRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={e => handleImportFile(e.target.files)}
+          />
+          <button
+            onClick={() => importRef.current?.click()}
+            disabled={importing}
+            title="استيراد كميات معيارية من ملف Excel أو CSV"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 disabled:opacity-50 transition-colors border border-border"
+          >
+            {importing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-green-400" />}
+            استيراد من Excel
+          </button>
+          <button
+            onClick={handleSeedStandard}
+            disabled={seeding}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {seeding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+            {items.length === 0 ? "تحميل البيانات المعيارية" : "إعادة تحميل البيانات"}
+          </button>
+        </div>
+      </div>
+
+      {/* Import format hint */}
+      <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
+        <FileSpreadsheet className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          <span className="text-blue-400 font-medium">تنسيق ملف الاستيراد: </span>
+          يجب أن يحتوي الملف على أعمدة: <span className="font-mono text-foreground">اسم البند</span> ،{" "}
+          <span className="font-mono text-foreground">اسم الصنف</span> ،{" "}
+          <span className="font-mono text-foreground">الكمية</span> (إلزامي) +{" "}
+          <span className="font-mono text-foreground">رقم البند</span> ،{" "}
+          <span className="font-mono text-foreground">الورقة</span> ،{" "}
+          <span className="font-mono text-foreground">وحدة البند</span> ،{" "}
+          <span className="font-mono text-foreground">وحدة الصنف</span> ،{" "}
+          <span className="font-mono text-foreground">سعر الوحدة</span> (اختياري) — صف واحد لكل صنف.
+        </div>
       </div>
 
       {/* Load data notice */}
