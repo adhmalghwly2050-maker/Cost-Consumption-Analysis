@@ -181,7 +181,26 @@ export async function importExcelFile(file: File): Promise<{ batchId: number; ro
   return { batchId, rowsImported: toInsert.length, columnsDetected: Object.keys(C) };
 }
 
-// ── Main Analytics Engine ─────────────────────────────────────────────────────
+// ── Completeness Filtering (Solve price-adjustment rows contaminating stats) ──
+//
+// Problem: when a branch requests a price correction, the ERP creates a NEW
+// transaction for ONLY the corrected element (not the full BOQ item).  This
+// makes the engine think the branch requested just 1 element for that item.
+//
+// Solution 2+3:
+//   Step A — Completeness gate (Solution 2):
+//     For every (project × boqItem) pair, count how many distinct elements
+//     were requested.  If a pair has < 60% of the maximum element count seen
+//     across all projects for that item, it is classified as a "price-
+//     adjustment transaction" and EXCLUDED from quantity statistics.
+//     Its clearedAmount / clearedQty is still used for pricing.
+//
+//   Step B — Cleared qty is the truth (Solution 3):
+//     Quantity / consumption stats are computed from clearedQty (what was
+//     actually executed), not requestedQty.  Price stats come from
+//     clearedAmount / clearedQty (actual price after any adjustment).
+
+const COMPLETENESS_THRESHOLD = 0.60; // rows with < 60% elements → price-adj
 
 export async function runAnalyticsEngine(opts?: { projectType?: string; branch?: string }): Promise<number> {
   const allStandard = await boqDb.standardReference.toArray();
@@ -200,6 +219,40 @@ export async function runAnalyticsEngine(opts?: { projectType?: string; branch?:
     standardMap.set(`${s.boqItemName.trim().toLowerCase()}|||${s.elementName.trim().toLowerCase()}`, s);
   }
 
+  // ── Step A: Compute max element count per boqItem across all projects ──────
+  // projectElementCount[boqItemName][projectId] = Set of elementNames
+  const projectElementCount: Record<string, Record<string, Set<string>>> = {};
+  for (const row of allRows) {
+    if (!row.boqItemName || !row.elementName || !row.projectId) continue;
+    if (!projectElementCount[row.boqItemName]) projectElementCount[row.boqItemName] = {};
+    if (!projectElementCount[row.boqItemName][row.projectId])
+      projectElementCount[row.boqItemName][row.projectId] = new Set();
+    projectElementCount[row.boqItemName][row.projectId].add(row.elementName);
+  }
+
+  // maxElementsPerItem[boqItemName] = highest element count seen in any single project
+  const maxElementsPerItem: Record<string, number> = {};
+  for (const [itemName, projects] of Object.entries(projectElementCount)) {
+    let max = 0;
+    for (const elSet of Object.values(projects)) {
+      if (elSet.size > max) max = elSet.size;
+    }
+    maxElementsPerItem[itemName] = max;
+  }
+
+  // completeProjects[boqItemName] = Set of projectIds that are "complete"
+  const completeProjects: Record<string, Set<string>> = {};
+  for (const [itemName, projects] of Object.entries(projectElementCount)) {
+    const maxCount = maxElementsPerItem[itemName] ?? 1;
+    completeProjects[itemName] = new Set();
+    for (const [projId, elSet] of Object.entries(projects)) {
+      if (elSet.size / maxCount >= COMPLETENESS_THRESHOLD) {
+        completeProjects[itemName].add(projId);
+      }
+    }
+  }
+
+  // ── Step B: Group rows by (boqItemName × elementName) ────────────────────
   const groups: Record<string, HistoricalUsage[]> = {};
   for (const row of allRows) {
     if (!row.boqItemName || !row.elementName) continue;
@@ -214,32 +267,48 @@ export async function runAnalyticsEngine(opts?: { projectType?: string; branch?:
     const [boqItemName, elementName] = key.split('|||');
     const elementCode = rows.find(r => r.elementCode)?.elementCode || null;
 
+    const completeSet = completeProjects[boqItemName] ?? new Set();
+    const nPriceAdj = rows.filter(r => r.projectId && !completeSet.has(r.projectId)).length;
+
+    // "Complete" rows: full BOQ requests → used for qty + CF stats
+    // "Price-adj" rows: partial requests → price only
+    const completeRows = rows.filter(r => !r.projectId || completeSet.has(r.projectId));
+    const allRowsForPrice = rows; // use all rows for pricing (price adj is the point)
+
+    // ── Consumption Factor: clearedQty / requestedQty (complete rows only) ──
     const cfs: number[] = [];
-    for (const row of rows) {
+    for (const row of completeRows) {
       const req = parseNum(row.requestedQty);
       const clr = parseNum(row.clearedQty) ?? 0;
       if (req && req > 0) cfs.push(clr / req);
     }
     const cfStats = cfs.length > 0 ? computeStats(cfs) : null;
 
+    // ── Qty stats: from clearedQty of complete rows (truth = what was done) ──
     const normClearedQtys: number[] = [];
     const normRequestedQtys: number[] = [];
     const normClearedAmounts: number[] = [];
-    const actualPrices: number[] = [];
     const overAllocPcts: number[] = [];
 
-    for (const row of rows) {
+    for (const row of completeRows) {
       const boqQty = parseNum(row.qty);
-      const clr = parseNum(row.clearedQty) ?? 0;
-      const req = parseNum(row.requestedQty);
+      const clr    = parseNum(row.clearedQty) ?? 0;
+      const req    = parseNum(row.requestedQty);
       const clrAmt = parseNum(row.clearedAmount) ?? 0;
       if (boqQty && boqQty > 0) {
-        if (clr > 0) normClearedQtys.push(clr / boqQty);
+        if (clr    >  0) normClearedQtys.push(clr / boqQty);
         if (req !== null && req > 0) normRequestedQtys.push(req / boqQty);
         if (clrAmt > 0) normClearedAmounts.push(clrAmt / boqQty);
       }
-      if (clrAmt > 0 && clr > 0) actualPrices.push(clrAmt / clr);
       if (req && req > 0) overAllocPcts.push(((req - clr) / Math.max(clr, 0.0001)) * 100);
+    }
+
+    // ── Price stats: from ALL rows (price-adj rows carry the corrected price) ─
+    const actualPrices: number[] = [];
+    for (const row of allRowsForPrice) {
+      const clr    = parseNum(row.clearedQty)    ?? 0;
+      const clrAmt = parseNum(row.clearedAmount) ?? 0;
+      if (clrAmt > 0 && clr > 0) actualPrices.push(clrAmt / clr);
     }
 
     const clrQtyStats  = normClearedQtys.length  > 0 ? computeStats(normClearedQtys)  : null;
@@ -250,6 +319,7 @@ export async function runAnalyticsEngine(opts?: { projectType?: string; branch?:
 
     if (normClearedQtys.length === 0 && cfs.length === 0) continue;
 
+    // ── Adaptive qty: based on cleared qty distribution (solution 3) ─────────
     let adaptiveQty: number | null = null;
     let cv = 0;
     if (clrQtyStats && clrQtyStats.n > 0) {
@@ -259,17 +329,21 @@ export async function runAnalyticsEngine(opts?: { projectType?: string; branch?:
       else                adaptiveQty = clrQtyStats.p90;
     }
 
+    // ── Adaptive price: median of actual prices (includes price-adj rows) ────
     const adaptiveUnitPrice = priceStats ? priceStats.median : null;
-    const adaptiveAmount = adaptiveQty != null && adaptiveUnitPrice != null ? adaptiveQty * adaptiveUnitPrice : null;
+    const adaptiveAmount = adaptiveQty != null && adaptiveUnitPrice != null
+      ? adaptiveQty * adaptiveUnitPrice : null;
 
     const stdKey = `${boqItemName.trim().toLowerCase()}|||${elementName.trim().toLowerCase()}`;
     const stdRef = standardMap.get(stdKey);
-    const origStdQty   = stdRef ? parseNum(stdRef.standardQty)  : null;
-    const origStdPrice = stdRef ? parseNum(stdRef.standardPrice) : null;
+    const origStdQty    = stdRef ? parseNum(stdRef.standardQty)   : null;
+    const origStdPrice  = stdRef ? parseNum(stdRef.standardPrice)  : null;
     const origStdAmount = origStdQty != null && origStdPrice != null ? origStdQty * origStdPrice : null;
-    const correctionRatio = adaptiveQty != null && origStdQty != null && origStdQty > 0 ? adaptiveQty / origStdQty : null;
+    const correctionRatio = adaptiveQty != null && origStdQty != null && origStdQty > 0
+      ? adaptiveQty / origStdQty : null;
     const medNormClr = clrQtyStats ? clrQtyStats.median : null;
-    const stdOverAllocPct = origStdQty != null && medNormClr != null && medNormClr > 0 ? ((origStdQty - medNormClr) / medNormClr) * 100 : null;
+    const stdOverAllocPct = origStdQty != null && medNormClr != null && medNormClr > 0
+      ? ((origStdQty - medNormClr) / medNormClr) * 100 : null;
 
     let efficiencyRating = 'غير محدد';
     if (cfStats && cfStats.mean > 0) {
@@ -281,7 +355,8 @@ export async function runAnalyticsEngine(opts?: { projectType?: string; branch?:
       else                  efficiencyRating = 'ضعيف';
     }
 
-    const stabilityScore = cfStats && cfStats.std >= 0 && cfStats.mean > 0 ? Math.max(0, 1 - cfStats.std / cfStats.mean) : null;
+    const stabilityScore = cfStats && cfStats.std >= 0 && cfStats.mean > 0
+      ? Math.max(0, 1 - cfStats.std / cfStats.mean) : null;
     const nFinal = cfStats ? cfStats.n : (clrQtyStats?.n ?? 0);
     const confidenceLevel = nFinal >= 10 ? 'عالية' : nFinal >= 5 ? 'متوسطة' : 'منخفضة';
     const stab = stabilityScore ?? 0;
@@ -291,24 +366,26 @@ export async function runAnalyticsEngine(opts?: { projectType?: string; branch?:
     const sortedCfs = [...cfs].sort((a, b) => a - b);
     const p10Cf = cfStats ? percentile(sortedCfs, 10) : 0;
     const p90Cf = cfStats ? percentile(sortedCfs, 90) : 0;
-    const percentileSpread = cfStats && cfStats.median > 0 ? (p90Cf - p10Cf) / cfStats.median : null;
+    const percentileSpread = cfStats && cfStats.median > 0
+      ? (p90Cf - p10Cf) / cfStats.median : null;
 
-    const zeroCleared = rows.filter(r => (parseNum(r.clearedQty) ?? 0) === 0).length;
-    const pctZeroCleared = rows.length > 0 ? zeroCleared / rows.length : 0;
+    // Zero-cleared check on complete rows (not price-adj which may have clr=0)
+    const zeroCleared = completeRows.filter(r => (parseNum(r.clearedQty) ?? 0) === 0).length;
+    const pctZeroCleared = completeRows.length > 0 ? zeroCleared / completeRows.length : 0;
     const avgCfVal = cfStats ? cfStats.mean : 0;
     let executionMode = 'غير محدد';
-    if      (pctZeroCleared > 0.80)               executionMode = 'مالي فقط';
-    else if (avgCfVal < 0.05)                      executionMode = 'مشبوه';
-    else if (avgCfVal > 0.75 && cvFinal < 0.25)   executionMode = 'تنفيذ مباشر';
-    else if (cvFinal > 0.70)                       executionMode = 'مختلط';
-    else if (pctZeroCleared > 0.40)               executionMode = 'مقاول جزئي';
-    else                                           executionMode = 'تنفيذ جزئي';
+    if      (pctZeroCleared > 0.80)             executionMode = 'مالي فقط';
+    else if (avgCfVal < 0.05)                    executionMode = 'مشبوه';
+    else if (avgCfVal > 0.75 && cvFinal < 0.25) executionMode = 'تنفيذ مباشر';
+    else if (cvFinal > 0.70)                     executionMode = 'مختلط';
+    else if (pctZeroCleared > 0.40)             executionMode = 'مقاول جزئي';
+    else                                         executionMode = 'تنفيذ جزئي';
     const executionCompletenessScore = (1 - pctZeroCleared).toFixed(4);
 
     results.push({
       boqItemName, elementName, elementCode,
       nProjects: nFinal,
-      nOutliers: cfStats ? cfStats.nOutliers : 0,
+      nOutliers: (cfStats ? cfStats.nOutliers : 0) + nPriceAdj,
       meanCf:   cfStats ? cfStats.mean.toFixed(6)   : null,
       medianCf: cfStats ? cfStats.median.toFixed(6) : null,
       stdCf:    cfStats ? cfStats.std.toFixed(6)    : null,
